@@ -127,7 +127,7 @@ class Home extends CI_Controller {
                         break;
 
                     case 'agent':
-                        redirect('agent/dashboard');
+                        redirect('Agent/dashboard');
                         break;
 
                     case 'admin':
@@ -155,5 +155,32 @@ class Home extends CI_Controller {
     {
         $this->session->sess_destroy();
         redirect(base_url());
+    }
+	public function dashboard()
+    {
+        // Example dummy data – replace with actual queries later
+        $data['agent'] = [
+            'name' => $this->session->userdata('name') ?? 'Agent Smith'
+        ];
+
+        $data['stats'] = [
+            'regular_users'      => 20,
+            'unpaid_fees'        => 5,
+            'service_rating'     => 4.8,
+            'reviews'            => 32,
+            'monthly_earnings'   => 120.50,
+            'earnings_this_week' => 25.75
+        ];
+
+        $data['waste_trends'] = [
+            'months'  => ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+            'plastik' => [5, 6, 4, 7, 8],
+            'kertas'  => [3, 4, 2, 5, 6],
+            'kaca'    => [2, 3, 1, 4, 2],
+            'logam'   => [1, 2, 2, 3, 2],
+            'organik' => [6, 7, 5, 8, 9]
+        ];
+
+        $this->load->view('agent/dashboard', $data);
     }
 }
