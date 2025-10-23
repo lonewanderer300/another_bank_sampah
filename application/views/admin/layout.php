@@ -4,28 +4,89 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar {
+            background-color: #ffffff;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            padding-top: 20px;
+            border-right: 1px solid #dee2e6;
+        }
+        .sidebar .nav-link {
+            color: #495057;
+            padding: 10px 20px;
+            margin: 5px 0;
+            border-radius: 0.25rem;
+        }
+        .sidebar .nav-link.active,
+        .sidebar .nav-link:hover {
+            background-color: #dc3545; /* Warna merah untuk admin */
+            color: #ffffff;
+        }
+        .sidebar .nav-link .bi { margin-right: 10px; }
+        .sidebar-header {
+            padding: 0 20px 20px 20px;
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: #343a40;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .logout-link {
+            position: absolute;
+            bottom: 20px;
+            width: calc(100% - 40px);
+            margin: 0 20px;
+        }
+    </style>
 </head>
-<body class="bg-gray-100">
+<body>
 
-    <div class="flex h-screen bg-gray-200">
-        <div class="w-64 bg-gray-800 text-white">
-            <div class="p-4 text-xl font-bold">Admin Panel</div>
-            <nav class="mt-10">
-                <a href="<?= base_url('admin/dashboard') ?>" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">Dashboard</a>
-                <a href="<?= base_url('home/logout') ?>" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">Logout</a>
-            </nav>
-        </div>
+<div class="sidebar">
+    <h3 class="sidebar-header">Admin Panel</h3>
+    <ul class="nav flex-column">
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'admin/dashboard' ? 'active' : '' ?>" href="<?= base_url('admin/dashboard') ?>">
+                <i class="bi bi-grid-1x2-fill"></i> Dashboard
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'admin/waste_prices' ? 'active' : '' ?>" href="<?= base_url('admin/waste_prices') ?>">
+                <i class="bi bi-tags-fill"></i> Harga Sampah
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'admin/manage_agents' ? 'active' : '' ?>" href="<?= base_url('admin/manage_agents') ?>">
+                <i class="bi bi-shop"></i> Manajemen Agen
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'admin/manage_users' ? 'active' : '' ?>" href="<?= base_url('admin/manage_users') ?>">
+                <i class="bi bi-people-fill"></i> Manajemen Nasabah
+            </a>
+        </li>
+		<li class="nav-item">
+    <a class="nav-link <?= uri_string() == 'admin/manage_iuran' ? 'active' : '' ?>" href="<?= base_url('admin/manage_iuran') ?>">
+        <i class="bi bi-cash-stack"></i> Manajemen Iuran
+    </a>
+</li>
 
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <header class="bg-white shadow p-4">
-                <h1 class="text-xl font-bold">Dashboard</h1>
-            </header>
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 p-6">
-                <?php $this->load->view($view_name); // Ini akan memuat konten dinamis ?>
-            </main>
-        </div>
-    </div>
+    </ul>
+    <a href="<?= base_url('auth/logout') ?>" class="btn btn-outline-danger logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
+</div>
 
+<div class="main-content">
+    <?php if (isset($view_name)) { $this->load->view($view_name); } ?>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

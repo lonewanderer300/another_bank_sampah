@@ -46,7 +46,7 @@
         <div class="text-center">
             <h3 class="text-2xl font-bold text-gray-900">Register as <span x-text="registerRole === 'user' ? 'User' : 'Agent'"></span></h3>
             <div class="mt-4 px-7 py-3">
-                <form action="<?= site_url('user/register') ?>" method="POST">
+                <form action="<?= site_url('home/register') ?>" method="POST">
                     <input type="hidden" name="role" x-model="registerRole">
                     
                     <input class="w-full px-4 py-2 mt-2 border rounded-md" type="text" placeholder="Full Name" name="name" required>

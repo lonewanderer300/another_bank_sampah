@@ -65,6 +65,28 @@ $route['agent/dashboard'] = 'agent/dashboard';
 
 $route['agent/my_user'] = 'agent/my_user';
 
+$route['agent/waste_collection'] = 'agent/waste_collection';
+
+$route['agent/transaction_history'] = 'agent/transaction_history';
+
+$route['agent/profile'] = 'agent/profile';
+
+$route['admin/login'] = 'admin/login';
+
+$route['admin/logout'] = 'admin/logout';
+
+$route['admin/dashboard'] = 'admin/dashboard';
+
+$route['admin/approve_agent/(:num)'] = 'admin/approve_agent/$1';
+
+$route['admin/reject_agent/(:num)'] = 'admin/reject_agent/$1';
+
+$route['admin/users'] = 'admin/users';
+
+$route['admin/agents'] = 'admin/agents';
+
+$route['admin/waste_prices'] = 'admin/waste_prices';
+
 $route['404_override'] = '';
 
 $route['translate_uri_dashes'] = FALSE;

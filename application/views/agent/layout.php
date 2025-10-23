@@ -1,78 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Agent Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body {
-      background: #f9fafb;
-      font-family: Arial, sans-serif;
-    }
-    .sidebar {
-      width: 260px;
-      min-height: 100vh;
-      background: #fff;
-      border-right: 1px solid #e5e7eb;
-      position: fixed;
-      left: 0;
-      top: 0;
-      padding: 20px;
-    }
-    .content {
-      margin-left: 280px;
-      padding: 20px;
-    }
-    .nav-link.active {
-      background: #dcfce7;
-      border-radius: 8px;
-      font-weight: bold;
-      color: #16a34a !important;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar {
+            background-color: #ffffff;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            padding-top: 20px;
+            border-right: 1px solid #dee2e6;
+        }
+        .sidebar .nav-link {
+            color: #495057;
+            padding: 10px 20px;
+            margin: 5px 0;
+            border-radius: 0.25rem;
+        }
+        .sidebar .nav-link.active,
+        .sidebar .nav-link:hover {
+            background-color: #198754; /* Warna hijau untuk agent */
+            color: #ffffff;
+        }
+        .sidebar .nav-link .bi { margin-right: 10px; }
+        .sidebar-header {
+            padding: 0 20px 20px 20px;
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: #343a40;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .logout-link {
+            position: absolute;
+            bottom: 20px;
+            width: calc(100% - 40px);
+            margin: 0 20px;
+        }
+    </style>
 </head>
 <body>
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <h4 class="fw-bold mb-4">Garbage Bank</h4>
 
-    <!-- Agent Info -->
-    <div class="d-flex align-items-center mb-4">
-      <img src="<?= $agent['avatar']; ?>" class="rounded-circle me-2" alt="agent" width="40" height="40">
-      <div>
-        <p class="mb-0 fw-semibold"><?= $agent['name']; ?></p>
-        <small class="text-muted"><?= $agent['role']; ?></small>
-      </div>
-    </div>
-
-    <!-- Navigation -->
-    <nav class="mt-10">
-    <a href="<?= base_url('agent/dashboard') ?>" class="flex items-center mt-4 py-2 px-6 bg-gray-700 bg-opacity-25 text-gray-100">
-        <span class="mx-3">Dashboard</span>
-    </a>
-    <a href="<?= base_url('agent/my_user') ?>" class="flex items-center mt-4 py-2 px-6 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100">
-        <span class="mx-3">Nasabah</span>
-    </a>
-    <a href="<?= base_url('agent/transactions') ?>" class="flex items-center mt-4 py-2 px-6 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100">
-        <span class="mx-3">Transaksi</span>
-    </a>
-    <a href="<?= base_url('agent/profile') ?>" class="flex items-center mt-4 py-2 px-6 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100">
-        <span class="mx-3">Profil</span>
-    </a>
-    </nav>
-  </div>
-
-  <!-- Content -->
-<div class="content">
-  <?php 
-    // Cek apakah ada variabel 'content' yang dikirim dari controller
-    if (isset($content)) {
-        $this->load->view($content);
-    } else {
-        echo "<p>Halaman tidak ditemukan.</p>";
-    }
-  ?>
+<div class="sidebar">
+    <h3 class="sidebar-header">Dashboard Agen</h3>
+    <ul class="nav flex-column">
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'agent/dashboard' ? 'active' : '' ?>" href="<?= base_url('agent/dashboard') ?>">
+                <i class="bi bi-grid-1x2-fill"></i> Dashboard
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'agent/my_user' ? 'active' : '' ?>" href="<?= base_url('agent/my_user') ?>">
+                <i class="bi bi-people-fill"></i> Nasabah
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'agent/transactions' ? 'active' : '' ?>" href="<?= base_url('agent/transactions') ?>">
+                <i class="bi bi-receipt"></i> Transaksi
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'agent/profile' ? 'active' : '' ?>" href="<?= base_url('agent/profile') ?>">
+                <i class="bi bi-person-circle"></i> Profil
+            </a>
+        </li>
+    </ul>
+    <a href="<?= base_url('auth/logout') ?>" class="btn btn-outline-danger logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
 </div>
 
+<div class="main-content">
+    <?php
+    // Memuat view konten dinamis yang dikirim dari controller
+    if (isset($view_name)) {
+        $this->load->view($view_name);
+    }
+    ?>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,84 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>User Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body {
-      background: #f8f9fa;
-      margin: 0;
-      padding: 0;
-      overflow-x: hidden; /* cegah scroll horizontal */
-    }
-    .sidebar {
-      width: 260px;
-      min-height: 100vh;
-      background: #fff;
-      border-right: 1px solid #e5e7eb;
-      position: fixed;
-      left: 0;
-      top: 0;
-      padding: 20px;
-    }
-    .sidebar .nav-link {
-      color: #333;
-      font-weight: 500;
-      margin-bottom: 8px;
-    }
-    .sidebar .nav-link.active {
-      color: #198754;
-      font-weight: 600;
-    }
-    .content {
-      margin-left: 260px;
-      padding: 30px;
-      max-width: calc(100% - 260px); /* biar pas sesuai sisa layar */
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .sidebar {
+            background-color: #ffffff;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            padding-top: 20px;
+            border-right: 1px solid #dee2e6;
+        }
+        .sidebar .nav-link {
+            color: #495057;
+            padding: 10px 20px;
+            margin: 5px 0;
+            border-radius: 0.25rem;
+        }
+        .sidebar .nav-link.active,
+        .sidebar .nav-link:hover {
+            background-color: #0d6efd;
+            color: #ffffff;
+        }
+        .sidebar .nav-link .bi {
+            margin-right: 10px;
+        }
+        .sidebar-header {
+            padding: 0 20px 20px 20px;
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: #343a40;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .logout-link {
+            position: absolute;
+            bottom: 20px;
+            width: calc(100% - 40px);
+            margin: 0 20px;
+        }
+    </style>
 </head>
 <body>
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <h4 class="fw-bold mb-4">Garbage Bank</h4>
 
-    <!-- User Info -->
-    <div class="d-flex align-items-center mb-4">
-      <div class="rounded-circle bg-primary text-white d-flex justify-content-center align-items-center"
-           style="width:40px; height:40px;">
-        <?= isset($user['name']) ? substr($user['name'], 0, 1) : 'G' ?>
-      </div>
-      <div class="ms-2">
-        <p class="mb-0 fw-semibold"><?= isset($user['name']) ? $user['name'] : 'Guest' ?></p>
-        <small class="text-muted"><?= isset($user['role']) ? $user['role'] : '' ?></small>
-      </div>
-    </div>
-
-    <!-- Navigation -->
+<div class="sidebar">
+    <h3 class="sidebar-header">Nasabah Sampah</h3>
     <ul class="nav flex-column">
-      <li class="nav-item mb-2">
-        <a class="nav-link <?=($page=='dashboard'?'active':'')?>" href="<?=site_url('dashboard')?>">Dashboard</a>
-      </li>
-      <li class="nav-item mb-2">
-        <a class="nav-link <?=($page=='waste_banks'?'active':'')?>" href="<?=site_url('waste_banks')?>">Waste Banks</a>
-      </li>
-      <li class="nav-item mb-2">
-        <a class="nav-link <?=($page=='transactions'?'active':'')?>" href="<?=site_url('transactions')?>">Transactions</a>
-      </li>
-      <li class="nav-item mb-2">
-        <a class="nav-link <?=($page=='profile'?'active':'')?>" href="<?=site_url('profile')?>">Profile</a>
-      </li>
-      <li class="nav-item mt-4">
-        <a class="nav-link text-danger" href="<?=site_url('logout')?>">Logout</a>
-      </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'user/dashboard' ? 'active' : '' ?>" href="<?= base_url('user/dashboard') ?>">
+                <i class="bi bi-grid-1x2-fill"></i> Dashboard
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'user/waste_banks' ? 'active' : '' ?>" href="<?= base_url('user/waste_banks') ?>">
+                <i class="bi bi-shop"></i> Bank Sampah
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'user/transactions' ? 'active' : '' ?>" href="<?= base_url('user/transactions') ?>">
+                <i class="bi bi-receipt"></i> Transaksi
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'user/profile' ? 'active' : '' ?>" href="<?= base_url('user/profile') ?>">
+                <i class="bi bi-person-circle"></i> Profil
+            </a>
+        </li>
     </ul>
-  </div>
+    <a href="<?= base_url('auth/logout') ?>" class="btn btn-outline-danger logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
+</div>
 
-  <!-- Content -->
-  <div class="content">
-    <div class="container-fluid">
-      <?php $this->load->view('user/'.$page); ?>
-    </div>
-  </div>
+<div class="main-content">
+    <?php
+    // Memuat view konten dinamis yang dikirim dari controller
+    if (isset($view_name)) {
+        $this->load->view($view_name);
+    }
+    ?>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

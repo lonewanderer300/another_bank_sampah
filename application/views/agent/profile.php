@@ -1,61 +1,104 @@
-<div class="bg-white p-6 rounded-lg shadow-lg">
-    <h2 class="text-2xl font-bold mb-6">Profil Saya</h2>
+<div class="container-fluid">
+    <h4 class="fw-bold mb-3">Pengaturan Profil Agen</h4>
 
-    <?php if($this->session->flashdata('success')): ?>
-        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-            <p><?= $this->session->flashdata('success'); ?></p>
+    <?php if ($this->session->flashdata('success')): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <?= $this->session->flashdata('success'); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php elseif ($this->session->flashdata('error')): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?= $this->session->flashdata('error'); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     <?php endif; ?>
-    <?php if($this->session->flashdata('error')): ?>
-        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
-            <p><?= $this->session->flashdata('error'); ?></p>
-        </div>
-    <?php endif; ?>
 
-    <form action="<?= base_url('agent/profile') ?>" method="POST">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <h3 class="text-lg font-semibold border-b pb-2 mb-4">Informasi Akun</h3>
-                <div class="mb-4">
-                    <label for="name" class="block text-gray-700 text-sm font-bold mb-2">Nama Lengkap:</label>
-                    <input type="text" name="name" id="name" value="<?= htmlspecialchars($profile['name']); ?>" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
-                </div>
-                <div class="mb-4">
-                    <label for="email" class="block text-gray-700 text-sm font-bold mb-2">Email:</label>
-                    <input type="email" name="email" id="email" value="<?= htmlspecialchars($profile['email']); ?>" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
-                </div>
-                <div class="mb-4">
-                    <label for="phone" class="block text-gray-700 text-sm font-bold mb-2">No. Telepon:</label>
-                    <input type="text" name="phone" id="phone" value="<?= htmlspecialchars($profile['phone']); ?>" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
-                </div>
-                 <div class="mb-4">
-                    <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Password Baru (Opsional):</label>
-                    <input type="password" name="password" id="password" placeholder="Kosongkan jika tidak ingin diubah" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body text-center">
+                    <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
+                        style="width: 100px; height: 100px; background: linear-gradient(135deg,#198754,#157347); color: #fff; font-size: 32px; font-weight: bold;">
+                        <?= strtoupper(substr($agent['name'], 0, 2)); ?>
+                    </div>
+                    <h5 class="mb-0"><?= html_escape($agent['name']); ?></h5>
+                    <p class="text-muted mb-1">Agen</p>
+                    <span class="badge bg-success mb-3">Agen Terverifikasi</span>
+                    <hr>
+                    <p class="text-start mb-1"><i class="bi bi-envelope text-success me-2"></i> <?= html_escape($agent['email']); ?></p>
+                    <p class="text-start mb-1"><i class="bi bi-telephone text-success me-2"></i> <?= html_escape($agent['phone']); ?></p>
+                    <p class="text-start mb-1"><i class="bi bi-geo-alt text-success me-2"></i> <?= html_escape($agent['address']); ?></p>
                 </div>
             </div>
 
-            <div>
-                <h3 class="text-lg font-semibold border-b pb-2 mb-4">Informasi Bank Sampah</h3>
-                <div class="mb-4">
-                    <label for="wilayah" class="block text-gray-700 text-sm font-bold mb-2">Wilayah:</label>
-                    <input type="text" name="wilayah" id="wilayah" value="<?= htmlspecialchars($profile['wilayah']); ?>" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Statistik Agen</h6>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Total Nasabah
+                            <span class="badge bg-success rounded-pill"><?= $stats['customers']; ?></span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Transaksi Masuk
+                            <span class="badge bg-success rounded-pill"><?= $stats['transactions']; ?></span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Sampah Terkumpul
+                            <span class="badge bg-success rounded-pill"><?= number_format($stats['waste_collected'], 2); ?> kg</span>
+                        </li>
+                    </ul>
                 </div>
-                <div class="mb-4">
-                    <label for="latitude" class="block text-gray-700 text-sm font-bold mb-2">Latitude:</label>
-                    <input type="text" name="latitude" id="latitude" value="<?= htmlspecialchars($profile['latitude']); ?>" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
-                </div>
-                <div class="mb-4">
-                    <label for="longitude" class="block text-gray-700 text-sm font-bold mb-2">Longitude:</label>
-                    <input type="text" name="longitude" id="longitude" value="<?= htmlspecialchars($profile['longitude']); ?>" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
-                </div>
-                <p class="text-xs text-gray-500">Anda bisa mendapatkan Latitude & Longitude dari Google Maps dengan klik kanan pada lokasi Anda.</p>
             </div>
         </div>
 
-        <div class="mt-8 flex justify-end">
-            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                Simpan Perubahan
-            </button>
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Update Informasi Bank Sampah</h6>
+                    <form action="<?= base_url('agent/profile') ?>" method="POST">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Nama Bank Sampah</label>
+                            <input type="text" class="form-control" id="name" name="name" value="<?= html_escape($agent['name']); ?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" value="<?= html_escape($agent['email']); ?>" readonly style="background-color: #e9ecef;">
+                            <div class="form-text">Email tidak dapat diubah.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Nomor Telepon</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="<?= html_escape($agent['phone'] != 'Belum diisi' ? $agent['phone'] : ''); ?>">
+                        </div>
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Alamat Lengkap</label>
+                            <input type="text" class="form-control" id="address" name="address" value="<?= html_escape($agent['address'] != 'Belum diisi' ? $agent['address'] : ''); ?>">
+                        </div>
+                        <div class="mb-3">
+                            <label for="wilayah" class="form-label">Wilayah Operasi</label>
+                            <select class="form-select" id="wilayah" name="wilayah" required>
+                                <?php foreach ($wilayah_options as $option): ?>
+                                    <option value="<?= $option; ?>" <?= ($agent['wilayah'] == $option) ? 'selected' : ''; ?>>
+                                        <?= $option; ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="bio" class="form-label">Bio / Deskripsi</label>
+                            <textarea class="form-control" id="bio" name="bio" rows="3"><?= html_escape($agent['bio'] != 'Ceritakan tentang bank sampah Anda.' ? $agent['bio'] : ''); ?></textarea>
+                        </div>
+                        <hr>
+                        <h6 class="fw-bold mb-3 mt-4">Ubah Password</h6>
+                        <p class="text-muted small">Kosongkan jika Anda tidak ingin mengubah password.</p>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password Baru</label>
+                            <input type="password" class="form-control" id="password" name="password">
+                        </div>
+                        <button type="submit" class="btn btn-success">Simpan Perubahan</button>
+                    </form>
+                </div>
+            </div>
         </div>
-    </form>
+    </div>
 </div>

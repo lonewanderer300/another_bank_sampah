@@ -1,39 +1,31 @@
-<div class="bg-white p-6 rounded-lg shadow-lg">
-    <h2 class="text-2xl font-bold mb-4">Riwayat Transaksi Setoran</h2>
-    <div class="overflow-x-auto">
-        <table class="w-full">
-            <thead>
-                <tr class="bg-gray-200 text-left text-sm">
-                    <th class="py-2 px-4">Tanggal</th>
-                    <th class="py-2 px-4">Nama Nasabah</th>
-                    <th class="py-2 px-4">Total</th>
-                    <th class="py-2 px-4">Status</th>
-                    <th class="py-2 px-4">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if(empty($transactions)): ?>
+<h4 class="fw-bold mb-4">Riwayat Transaksi Agen</h4>
+<div class="row">
+    </div>
+
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-body">
+        <h5 class="card-title fw-bold mb-3">Semua Transaksi Masuk</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-gray-500">Belum ada transaksi.</td>
+                        <th>Tanggal</th>
+                        <th>Nama Nasabah</th>
+                        <th>Total Berat</th>
+                        <th class="text-end">Nilai Transaksi</th>
                     </tr>
-                <?php else: ?>
-                    <?php foreach($transactions as $trx): ?>
-                    <tr class="border-b">
-                        <td class="py-2 px-4"><?= date('d M Y', strtotime($trx['tanggal_setor'])); ?></td>
-                        <td class="py-2 px-4"><?= htmlspecialchars($trx['user_name']); ?></td>
-                        <td class="py-2 px-4">Rp <?= number_format($trx['total_setoran'], 0, ',', '.'); ?></td>
-                        <td class="py-2 px-4">
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                Selesai
-                            </span>
-                        </td>
-                        <td class="py-2 px-4">
-                            <a href="#" class="text-blue-500 hover:underline">Detail</a>
-                        </td>
+                </thead>
+                <tbody>
+                    <?php foreach ($transactions as $trans): ?>
+                    <tr>
+                        <td><?= date('d M Y', strtotime($trans['tanggal_setor'])); ?></td>
+                        <td><?= html_escape($trans['customer_name']); ?></td>
+                        <td><?= number_format($trans['total_berat'], 2); ?> kg</td>
+                        <td class="text-end fw-bold text-success">+ Rp <?= number_format($trans['transaction_value'], 0, ',', '.'); ?></td>
                     </tr>
                     <?php endforeach; ?>
-                <?php endif; ?>
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>

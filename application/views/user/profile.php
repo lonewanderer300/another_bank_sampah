@@ -1,153 +1,246 @@
-<div class="container mt-4">
-  <!-- Header -->
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="fw-bold">Profile Settings</h4>
-    <a href="#" class="btn btn-dark btn-sm">
-      <i class="bi bi-pencil-square"></i> Edit Profile
-    </a>
-  </div>
-  <p class="text-muted">Manage your account information and preferences</p>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
 
-  <!-- Profile Card -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-body text-center">
-      <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
-           style="width: 100px; height: 100px; background: linear-gradient(135deg,#0f9,#09f); color: #fff; font-size: 32px; font-weight: bold;">
-        <?= strtoupper(substr($user['name'],0,2)); ?>
-      </div>
-      <h5 class="mb-0"><?= $user['name']; ?></h5>
-      <p class="text-muted"><?= $user['role']; ?></p>
-      <span class="badge bg-success">Verified User</span>
-      <div class="mt-3">
-        <p class="mb-1"><i class="bi bi-envelope"></i> <?= $user['email']; ?></p>
-        <p class="mb-1"><i class="bi bi-telephone"></i> <?= $user['phone']; ?></p>
-        <p class="mb-1"><i class="bi bi-geo-alt"></i> <?= $user['address']; ?></p>
-      </div>
-      <hr>
-      <p class="text-muted"><?= $user['bio']; ?></p>
-    </div>
-  </div>
+<style>
+    /* Style untuk container peta */
+    #map { 
+        height: 350px; 
+        width: 100%;
+        border-radius: 0.5rem;
+        border: 1px solid #dee2e6;
+    }
+</style>
 
-  <!-- Statistics -->
-  <div class="row text-center mt-4">
-    <div class="col-md-3 mb-3">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h5 class="fw-bold"><?= $stats['collections']; ?></h5>
-          <p class="text-muted">Collections</p>
+<div class="container-fluid">
+    <h4 class="fw-bold mb-3">Profile Settings</h4>
+
+    <?php if ($this->session->flashdata('success')): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <?= $this->session->flashdata('success'); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-      </div>
-    </div>
-    <div class="col-md-3 mb-3">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h5 class="fw-bold"><?= $stats['points']; ?></h5>
-          <p class="text-muted">Total Points</p>
+    <?php elseif ($this->session->flashdata('error')): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?= $this->session->flashdata('error'); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-      </div>
-    </div>
-    <div class="col-md-3 mb-3">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h5 class="fw-bold"><?= $user['member_since']; ?></h5>
-          <p class="text-muted">Member Since</p>
+    <?php endif; ?>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body text-center">
+                    <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
+                        style="width: 100px; height: 100px; background: linear-gradient(135deg,#0f9,#09f); color: #fff; font-size: 32px; font-weight: bold;">
+                        <?= strtoupper(substr($user['name'], 0, 2)); ?>
+                    </div>
+                    <h5 class="mb-0"><?= html_escape($user['name']); ?></h5>
+                    <p class="text-muted mb-1"><?= html_escape($user['role']); ?></p>
+                    <span class="badge bg-success mb-3">Verified User</span>
+                    <hr>
+                    <p class="text-start mb-1"><i class="bi bi-envelope text-primary me-2"></i> <?= html_escape($user['email']); ?></p>
+                    <p class="text-start mb-1"><i class="bi bi-telephone text-primary me-2"></i> <?= html_escape($user['phone']); ?></p>
+                    <p class="text-start mb-1"><i class="bi bi-geo-alt text-primary me-2"></i> <?= html_escape($user['address']); ?></p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Statistik Akun</h6>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Total Setoran
+                            <span class="badge bg-primary rounded-pill"><?= $stats['collections']; ?></span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Total Poin
+                            <span class="badge bg-primary rounded-pill"><?= $stats['points']; ?></span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Sampah Terkumpul
+                            <span class="badge bg-primary rounded-pill"><?= $stats['waste_collected']; ?> kg</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Bergabung Sejak
+                            <span class="badge bg-secondary rounded-pill"><?= $user['member_since']; ?></span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-    <div class="col-md-3 mb-3">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h5 class="fw-bold"><?= $stats['waste_collected']; ?>kg</h5>
-          <p class="text-muted">Waste Collected</p>
+
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Update Informasi Pribadi</h6>
+                    <form action="<?= base_url('user/profile') ?>" method="POST">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="name" class="form-label">Nama Lengkap</label>
+                                <input type="text" class="form-control" id="name" name="name" value="<?= html_escape($user['name']); ?>" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">Alamat Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="<?= html_escape($user['email']); ?>" readonly style="background-color: #e9ecef;">
+                                <div class="form-text">Email tidak dapat diubah.</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Nomor Telepon</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="<?= html_escape($user['phone'] != 'Belum diisi' ? $user['phone'] : ''); ?>" placeholder="Contoh: 081234567890">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Tentukan Lokasi Anda di Peta</label>
+                            <div id="map"></div>
+                            <div class="form-text">Klik pada peta atau geser penanda untuk mengatur lokasi.</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="latitude" class="form-label">Latitude</label>
+                                <input type="text" class="form-control" id="latitude" name="latitude" value="<?= html_escape($user['latitude']); ?>" placeholder="Latitude akan terisi otomatis" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="longitude" class="form-label">Longitude</label>
+                                <input type="text" class="form-control" id="longitude" name="longitude" value="<?= html_escape($user['longitude']); ?>" placeholder="Longitude akan terisi otomatis" readonly>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Detail Alamat (Opsional)</label>
+                            <input type="text" class="form-control" id="address" name="address" value="<?= html_escape($user['raw_address']); ?>" placeholder="Contoh: Jl. Merdeka No. 17, RT 01/RW 05">
+                            <div class="form-text">Gunakan ini untuk detail tambahan seperti nama gang atau nomor rumah.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="bio" class="form-label">Bio</label>
+                            <textarea class="form-control" id="bio" name="bio" rows="3" placeholder="Ceritakan sedikit tentang diri Anda"><?= html_escape($user['bio'] != 'Ceritakan tentang diri Anda.' ? $user['bio'] : ''); ?></textarea>
+                        </div>
+                        
+                        <hr>
+                        <h6 class="fw-bold mb-3 mt-4">Ubah Password</h6>
+                        <p class="text-muted small">Kosongkan jika Anda tidak ingin mengubah password.</p>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password Baru</label>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Masukkan password baru">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                    </form>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
+	<hr class="my-4">
+<h6 class="fw-bold mb-3">Data Nasabah</h6>
 
-  <!-- Tabs Navigation -->
-  <ul class="nav nav-tabs mb-3" id="profileTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab">
-        Personal Info
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="achievements-tab" data-bs-toggle="tab" data-bs-target="#achievements" type="button" role="tab">
-        Achievements
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">
-        Settings
-      </button>
-    </li>
-  </ul>
-
-  <!-- Tabs Content -->
-  <div class="tab-content" id="profileTabsContent">
-    <!-- Personal Info -->
-    <div class="tab-pane fade show active" id="personal" role="tabpanel">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h6 class="fw-bold mb-3">Personal Information</h6>
-          <p class="text-muted">Update your personal details and contact information</p>
-
-          <div class="mb-2">
-              <label class="form-label">Full Name</label>
-              <input type="text" class="form-control" value="<?= $user['name']; ?>" readonly>
-          </div>
-
-          <div class="mb-2">
-            <label class="form-label">Email Address</label>
-            <input type="email" class="form-control" value="<?= $user['email']; ?>" readonly>
-          </div>
-
-          <div class="mb-2">
-            <label class="form-label">Phone Number</label>
-            <input type="text" class="form-control" value="<?= $user['phone']; ?>" readonly>
-          </div>
-
-          <div class="mb-2">
-            <label class="form-label">Address</label>
-            <input type="text" class="form-control" value="<?= $user['address']; ?>" readonly>
-          </div>
-
-          <div class="mb-2">
-            <label class="form-label">Bio</label>
-            <textarea class="form-control" rows="2" readonly><?= $user['bio']; ?></textarea>
-          </div>
+<?php if ($nasabah): ?>
+    <div class="alert alert-info">
+        <strong>Tipe Nasabah:</strong> <?= ucfirst($nasabah['tipe_nasabah']); ?><br>
+        <strong>Jumlah Nasabah:</strong> <?= $nasabah['jumlah_nasabah']; ?>
+    </div>
+<?php else: ?>
+    <form action="<?= base_url('user/profile') ?>" method="POST" class="mt-3">
+        <input type="hidden" name="add_nasabah" value="1">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="tipe_nasabah" class="form-label">Tipe Nasabah</label>
+                <select class="form-select" id="tipe_nasabah" name="tipe_nasabah" required>
+                    <option value="">-- Pilih Tipe --</option>
+                    <option value="Perorangan">Perorangan</option>
+                    <option value="Kelompok">Kelompok</option>
+                </select>
+            </div>
+            <div class="col-md-6 mb-3" id="jumlah_nasabah_group" style="display: none;">
+                <label for="jumlah_nasabah" class="form-label">Jumlah Nasabah</label>
+                <input type="number" class="form-control" id="jumlah_nasabah" name="jumlah_nasabah" min="1">
+            </div>
         </div>
-      </div>
-    </div>
+        <button type="submit" class="btn btn-success">Tambah Nasabah</button>
+    </form>
 
-    <!-- Achievements -->
-    <div class="tab-pane fade" id="achievements" role="tabpanel">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h6 class="fw-bold mb-3">Achievements</h6>
-          <p class="text-muted">Your rewards, milestones, and certifications</p>
-          <!-- Dummy Example -->
-          <ul>
-            <li>Top Collector - March 2024</li>
-            <li>Eco-Friendly Badge</li>
-            <li>100kg Waste Milestone</li>
-          </ul>
-        </div>
-      </div>
-    </div>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const tipeNasabah = document.getElementById("tipe_nasabah");
+        const jumlahGroup = document.getElementById("jumlah_nasabah_group");
+        const jumlahInput = document.getElementById("jumlah_nasabah");
 
-    <!-- Settings -->
-    <div class="tab-pane fade" id="settings" role="tabpanel">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h6 class="fw-bold mb-3">Account Settings</h6>
-          <p class="text-muted">Manage your preferences and security</p>
-          <button class="btn btn-outline-danger btn-sm">
-            <i class="bi bi-box-arrow-right"></i> Logout
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+        // Hide initially
+        jumlahGroup.style.display = "none";
+
+        tipeNasabah.addEventListener("change", function() {
+            const value = this.value.toLowerCase();
+            if (value === "perorangan") {
+                jumlahGroup.style.display = "none"; // hide
+                jumlahInput.value = 1; // auto set 1
+            } else if (value === "kelompok") {
+                jumlahGroup.style.display = "block"; // show
+                jumlahInput.value = ""; // clear
+            } else {
+                jumlahGroup.style.display = "none"; // hide default
+                jumlahInput.value = "";
+            }
+        });
+    });
+    </script>
+<?php endif; ?>
+
 
 </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+<script>
+    // Ambil elemen input
+    const latInput = document.getElementById('latitude');
+    const lonInput = document.getElementById('longitude');
+
+    // Tentukan koordinat awal
+    // Prioritas: data dari database. Jika kosong, gunakan titik tengah Indonesia.
+    const initialLat = latInput.value || -2.5489; 
+    const initialLon = lonInput.value || 118.0149;
+    const initialZoom = latInput.value ? 16 : 5; // Zoom lebih dekat jika sudah ada data
+
+    // Inisialisasi peta
+    const map = L.map('map').setView([initialLat, initialLon], initialZoom);
+
+    // Tambahkan layer peta dari OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Buat marker (penanda) yang bisa digeser
+    const marker = L.marker([initialLat, initialLon], {
+        draggable: true
+    }).addTo(map);
+
+    // Fungsi untuk memperbarui nilai input
+    function updateInputs(latlng) {
+        latInput.value = latlng.lat.toFixed(8);
+        lonInput.value = latlng.lng.toFixed(8);
+    }
+    
+    // Panggil fungsi pertama kali jika data sudah ada
+    if(latInput.value && lonInput.value) {
+        updateInputs(marker.getLatLng());
+    }
+
+    // Event listener saat marker selesai digeser (drag)
+    marker.on('dragend', function(event) {
+        const position = marker.getLatLng();
+        updateInputs(position);
+    });
+
+    // Event listener saat peta diklik
+    map.on('click', function(e) {
+        // Pindahkan marker ke posisi klik
+        marker.setLatLng(e.latlng);
+        // Perbarui nilai input
+        updateInputs(e.latlng);
+    });
+</script>

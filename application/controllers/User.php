@@ -6,172 +6,172 @@ class User extends CI_Controller {
     public function __construct()
     {
         parent::__construct();
-		$this->load->model('User_model');
-        $this->load->helper(['url', 'form']);
-        $this->load->library('session');
+        $this->load->model('User_model');
+
+        // Pengecekan sesi: pastikan pengguna sudah login dan rolenya adalah 'user'
+        if (!$this->session->userdata('logged_in') || $this->session->userdata('role') !== 'user') {
+            $this->session->set_flashdata('error', 'Anda harus login sebagai User untuk mengakses halaman ini.');
+            redirect(base_url());
+        }
+    }
+
+    public function index()
+    {
+        redirect('user/dashboard');
     }
 
     public function dashboard()
-{
-    // Make sure user is logged in
-    if (!$this->session->userdata('logged_in')) {
-        redirect(base_url());
+    {
+        $user_id = $this->session->userdata('user_id');
+        
+        // 1. Mengambil data utama
+        $data['balance'] = $this->User_model->get_user_balance($user_id);
+        $data['total_waste'] = $this->User_model->get_total_waste_by_user($user_id);
+        $data['transactions'] = $this->User_model->get_user_transactions($user_id, 5); // Ambil 5 transaksi terakhir
+
+        // 2. Mengambil data untuk grafik komposisi sampah
+        $waste_summary = $this->User_model->get_waste_summary_by_user($user_id);
+        
+        // Memformat data agar siap digunakan oleh Chart.js
+        $data['waste_labels'] = json_encode(array_column($waste_summary, 'waste_type'));
+        $data['waste_data'] = json_encode(array_column($waste_summary, 'total_weight'));
+
+        // 3. Logika untuk status iuran (contoh statis)
+        // Di aplikasi nyata, Anda akan memeriksa status pembayaran dari database.
+        // Untuk saat ini, kita buat contoh statis.
+        $data['iuran'] = [
+            'status' => 'paid', // Ganti menjadi 'unpaid' untuk melihat perbedaannya
+            'amount' => 20000,
+            'due_date' => '30 Oktober 2025'
+        ];
+
+        $data['view_name'] = 'user/dashboard'; 
+        $this->load->view('user/layout', $data);
     }
 
-    // Get user data from session
-    $user = [
-        'name'  => $this->session->userdata('nama'),
-        'role'  => $this->session->userdata('role'),
-        'email' => $this->session->userdata('email')
+    public function transactions()
+    {
+        $user_id = $this->session->userdata('user_id');
+
+        // Mengambil data untuk kartu rekapitulasi
+        $data['total_transactions'] = $this->User_model->count_user_transactions($user_id);
+        $data['total_income'] = $this->User_model->get_total_income_by_user($user_id);
+        $data['total_waste'] = $this->User_model->get_total_waste_by_user($user_id);
+
+        // Mengambil daftar semua transaksi untuk ditampilkan di tabel
+        $data['transactions'] = $this->User_model->get_user_transactions($user_id);
+        
+        $data['view_name'] = 'user/transactions';
+        $this->load->view('user/layout', $data);
+    }
+
+    public function waste_banks()
+    {
+        $data['agents'] = $this->User_model->get_all_active_agents();
+        $data['view_name'] = 'user/waste_banks';
+        $this->load->view('user/layout', $data);
+    }
+
+    public function profile()
+{
+    $user_id = $this->session->userdata('user_id');
+    $this->load->database();
+
+    // === 1️⃣ ADD NASABAH SECTION (handle first if form submitted) ===
+    if ($this->input->post('add_nasabah')) {
+        $nasabah = $this->User_model->get_nasabah_by_user($user_id);
+
+        if (!$nasabah) {
+            $tipe = $this->input->post('tipe_nasabah');
+            $jumlah = $this->input->post('jumlah_nasabah');
+
+            // 🧩 Make sure jumlah_nasabah = 1 if Perorangan
+            if ($tipe === 'Perorangan') {
+                $jumlah = 1;
+            }
+
+            $data_nasabah = [
+                'id_users'       => $user_id,
+                'tipe_nasabah'   => $tipe,
+                'jumlah_nasabah' => $jumlah
+            ];
+
+            if ($this->User_model->add_nasabah($data_nasabah)) {
+                $this->session->set_flashdata('success', 'Data nasabah berhasil ditambahkan.');
+            } else {
+                $this->session->set_flashdata('error', 'Gagal menambahkan data nasabah.');
+            }
+        } else {
+            $this->session->set_flashdata('error', 'Anda sudah memiliki data nasabah.');
+        }
+
+        redirect('user/profile');
+        return;
+    }
+
+    // === 2️⃣ UPDATE PROFILE SECTION ===
+    if ($this->input->post()) {
+        $update_data = [
+            'nama'      => $this->input->post('name'),
+            'phone'     => $this->input->post('phone'),
+            'address'   => $this->input->post('address'),
+            'bio'       => $this->input->post('bio'),
+            'latitude'  => $this->input->post('latitude') ?: NULL,
+            'longitude' => $this->input->post('longitude') ?: NULL,
+        ];
+
+        if ($this->input->post('password')) {
+            $update_data['password'] = password_hash($this->input->post('password'), PASSWORD_BCRYPT);
+        }
+
+        if ($this->User_model->update_profile($user_id, $update_data)) {
+            $this->session->set_userdata('name', $update_data['nama']);
+            $this->session->set_flashdata('success', 'Profil berhasil diperbarui.');
+        } else {
+            $this->session->set_flashdata('error', 'Gagal memperbarui profil.');
+        }
+
+        redirect('user/profile');
+        return;
+    }
+
+    // === 3️⃣ DISPLAY SECTION ===
+    $user_profile = $this->User_model->get_user_profile($user_id);
+
+    // Handle address display
+    $this->load->helper('location');
+    $address_display = 'Belum diisi';
+    if (!empty($user_profile['latitude']) && !empty($user_profile['longitude'])) {
+        $address_display = get_address_from_coords($user_profile['latitude'], $user_profile['longitude']);
+    } elseif (!empty($user_profile['address'])) {
+        $address_display = $user_profile['address'];
+    }
+
+    $nasabah = $this->User_model->get_nasabah_by_user($user_id);
+    $data['nasabah'] = $nasabah;
+
+    $data['user'] = [
+        'name'         => $user_profile['nama'],
+        'role'         => ucfirst($user_profile['role']),
+        'email'        => $user_profile['email'],
+        'phone'        => !empty($user_profile['phone']) ? $user_profile['phone'] : 'Belum diisi',
+        'address'      => $address_display,
+        'latitude'     => $user_profile['latitude'],
+        'longitude'    => $user_profile['longitude'],
+        'raw_address'  => $user_profile['address'],
+        'bio'          => !empty($user_profile['bio']) ? $user_profile['bio'] : 'Ceritakan tentang diri Anda.',
+        'member_since' => date('M Y', strtotime($user_profile['created_at'])),
     ];
 
-    // Dummy dashboard stats (replace with real data later)
-    $stats = [
-        'total_collections' => 23,
-        'points'            => 1240,
-        'active_requests'   => 2,
-        'monthly_goal'      => 78
+    $data['stats'] = [
+        'collections'     => $this->User_model->count_user_transactions($user_id),
+        'points'          => $this->User_model->get_user_points($user_id),
+        'waste_collected' => $this->User_model->get_total_waste_by_user($user_id),
     ];
 
-    $recent_activity = [
-        ['date' => '2025-10-03', 'amount' => '5.2 kg', 'by' => 'Agent A'],
-        ['date' => '2025-10-01', 'amount' => '3.1 kg', 'by' => 'Agent B'],
-        ['date' => '2025-09-29', 'amount' => '7.0 kg', 'by' => 'Agent C'],
-    ];
-
-    // Pass everything into layout
-    $data = [
-        'page'            => 'dashboard', // layout will include user/dashboard.php
-        'user'            => $user,
-        'stats'           => $stats,
-        'recent_activity' => $recent_activity
-    ];
-
-    // Load layout (this keeps your dashboard design intact)
+    $data['view_name'] = 'user/profile';
     $this->load->view('user/layout', $data);
 }
 
-
-    
-    public function waste_banks() {
-        $data['page'] = 'waste_banks';
-
-        // Dummy data user (sementara, nanti bisa ambil dari session)
-        $data['user'] = [
-            'name' => 'John Doe',
-            'role' => 'Regular User'
-        ];
-
-        // Dummy data centers
-        $data['centers'] = [
-            ['id'=>1, 'name'=>'Center A', 'distance'=>'1.2 km', 'type'=>'Plastic', 'favorite'=>true],
-            ['id'=>2, 'name'=>'Center B', 'distance'=>'2.5 km', 'type'=>'Paper', 'favorite'=>false],
-            ['id'=>3, 'name'=>'Center C', 'distance'=>'3.1 km', 'type'=>'Metal', 'favorite'=>true],
-        ];
-
-        $this->load->view('user/layout', $data);
-    }
-
-    public function transactions() {
-        $data['page'] = 'transactions';
-
-        // Dummy data user
-        $data['user'] = [
-            'name' => 'John Doe',
-            'role' => 'Regular User'
-        ];
-
-        // Dummy data transaksi
-        $data['transactions'] = [
-            ['id'=>'TX001', 'date'=>'2025-09-30', 'waste_type'=>'Plastic', 'agent'=>'Agent A', 'weight'=>'2.5kg', 'location'=>'Center A', 'points'=>20, 'earnings'=>5.5, 'status'=>'Completed'],
-            ['id'=>'TX002', 'date'=>'2025-09-29', 'waste_type'=>'Paper', 'agent'=>'Agent B', 'weight'=>'1.2kg', 'location'=>'Center B', 'points'=>10, 'earnings'=>2.3, 'status'=>'Pending'],
-        ];
-
-        $this->load->view('user/layout', $data);
-    }
-
-
-    public function profile() {
-        $data['page']  = "profile"; 
-
-        // Dummy user data
-        $data['user'] = [
-            'name'    => 'John Doe',
-            'role'    => 'Community Member',
-            'email'   => 'john.doe@example.com',
-            'phone'   => '+1-555-0123',
-            'address' => '123 Main Street, Downtown District',
-            'bio'     => 'Environmental enthusiast committed to sustainable waste management',
-            'member_since' => 'Jan 2024'
-        ];
-
-        // Dummy stats
-        $data['stats'] = [
-            'collections'     => 23,
-            'points'          => 1240,
-            'member_since'    => 'Jan 2024',
-            'waste_collected' => '156 '
-        ];
-
-        // Load profile view via layout
-        $this->load->view('user/layout', [
-            'content' => $this->load->view('user/profile', $data, TRUE)
-        ]);
-    }
-	public function register()
-    {
-        $role = $this->input->post('role', true);
-        $name = $this->input->post('name', true);
-        $email = $this->input->post('email', true);
-        $password = $this->input->post('password', true);
-        $phone = $this->input->post('phone', true);
-
-        // Check if email already exists
-        // Check if email already exists (regardless of role)
-		if ($this->User_model->check_email_exists($email)) {
-    		$this->session->set_flashdata('error', 'Email sudah digunakan untuk akun lain.');
-    		redirect(base_url());
-		}
-
-
-        // Base user data
-        $data_user = [
-            'nama' => $name,
-            'email' => $email,
-            'username' => explode('@', $email)[0],
-            'password' => password_hash($password, PASSWORD_BCRYPT),
-            'role' => $role,
-            'avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($name),
-            'poin' => 0,
-            'saldo' => 0
-        ];
-
-        // If agent, prepare agent data
-        $data_agent = null;
-        if ($role === 'agent') {
-            $data_agent = [
-                'wilayah' => $this->input->post('wilayah', true),
-                'status' => 'aktif'
-            ];
-        }
-
-        // Save to DB
-        $user_id = $this->User_model->register($data_user, $data_agent);
-
-        // Set session
-        $this->session->set_userdata([
-            'id_user' => $user_id,
-            'nama' => $name,
-            'email' => $email,
-            'role' => $role,
-            'logged_in' => true
-        ]);
-
-        // Redirect by role
-        if ($role === 'agent') {
-            redirect('agent/dashboard');
-        } else {
-            redirect('user/dashboard');
-        }
-    }
 }
+
