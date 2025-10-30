@@ -78,7 +78,7 @@
             </a>
         </li>
     </ul>
-    <a href="<?= base_url('auth/logout') ?>" class="btn btn-outline-danger logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
+    <a href="<?= base_url('user/logout') ?>" class="btn btn-outline-danger logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
 </div>
 
 <div class="main-content">

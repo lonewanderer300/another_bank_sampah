@@ -94,5 +94,32 @@ public function add_or_update_iuran($data)
         return $this->db->insert('iuran', $data);
     }
 }
+public function get_all_categories()
+{
+    return $this->db->get('kategori_sampah')->result_array();
+}
+
+public function add_waste_type($data)
+{
+    // Extract harga (so we don’t insert it into jenis_sampah)
+    $harga_awal = isset($data['harga']) ? $data['harga'] : null;
+    unset($data['harga']);
+
+    // Insert new waste type (without harga)
+    $this->db->insert('jenis_sampah', $data);
+    $id_jenis = $this->db->insert_id();
+
+    // Add initial price record to harga_histori
+    if (!empty($harga_awal)) {
+        $this->db->insert('harga_histori', [
+            'id_jenis' => $id_jenis,
+            'harga' => $harga_awal,
+            'tanggal_update' => date('Y-m-d')
+        ]);
+    }
+
+    return $id_jenis;
+}
+
 
 }

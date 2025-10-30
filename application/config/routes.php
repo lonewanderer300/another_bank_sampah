@@ -61,6 +61,8 @@ $route['transactions'] = 'user/transactions';
 
 $route['profile'] = 'user/profile';
 
+$route['user/logout'] = 'user/logout';
+
 $route['agent/dashboard'] = 'agent/dashboard';
 
 $route['agent/my_user'] = 'agent/my_user';
@@ -70,6 +72,8 @@ $route['agent/waste_collection'] = 'agent/waste_collection';
 $route['agent/transaction_history'] = 'agent/transaction_history';
 
 $route['agent/profile'] = 'agent/profile';
+
+$route['agent/logout'] = 'agent/logout';
 
 $route['admin/login'] = 'admin/login';
 

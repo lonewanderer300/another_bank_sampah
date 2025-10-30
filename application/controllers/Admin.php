@@ -78,19 +78,36 @@ class Admin extends CI_Controller {
     }
 
     public function waste_prices()
-    {
-        if ($this->input->post('update_price')) {
-            $waste_id = $this->input->post('id_jenis');
-            $new_price = $this->input->post('harga');
-            $this->Admin_model->update_waste_price($waste_id, $new_price);
-            $this->session->set_flashdata('success', 'Harga sampah berhasil diperbarui.');
-            redirect('admin/waste_prices');
-        }
-
-        $data['waste_types'] = $this->Admin_model->get_all_waste_types();
-        $data['view_name'] = 'admin/waste_prices';
-        $this->load->view('admin/layout', $data);
+{
+    // Update existing price
+    if ($this->input->post('update_price')) {
+        $waste_id = $this->input->post('id_jenis');
+        $new_price = $this->input->post('harga');
+        $this->Admin_model->update_waste_price($waste_id, $new_price);
+        $this->session->set_flashdata('success', 'Harga sampah berhasil diperbarui.');
+        redirect('admin/waste_prices');
     }
+
+    // Add new waste type
+    if ($this->input->post('add_waste_type')) {
+        $data = [
+            'id_kategori' => $this->input->post('id_kategori'),
+            'nama_jenis'  => $this->input->post('nama_jenis'),
+            'satuan'      => $this->input->post('satuan'),
+            'harga'       => $this->input->post('harga')
+        ];
+
+        $this->Admin_model->add_waste_type($data);
+        $this->session->set_flashdata('success', 'Jenis sampah baru berhasil ditambahkan.');
+        redirect('admin/waste_prices');
+    }
+
+    $data['waste_types'] = $this->Admin_model->get_all_waste_types();
+    $data['categories'] = $this->Admin_model->get_all_categories();
+    $data['view_name'] = 'admin/waste_prices';
+    $this->load->view('admin/layout', $data);
+}
+
 
     public function manage_agents()
     {
@@ -126,32 +143,41 @@ class Admin extends CI_Controller {
         }
         redirect('admin/dashboard');
     }
+
 	public function manage_iuran()
-{
-    //$this->load->model('Admin_model');
+    {
+        //$this->load->model('Admin_model');
 
-    // If admin updates biaya
-    if ($this->input->post('update_iuran')) {
-        $id_nasabah = $this->input->post('id_nasabah');
-        $biaya = $this->input->post('biaya');
+        // If admin updates biaya
+        if ($this->input->post('update_iuran')) {
+            $id_nasabah = $this->input->post('id_nasabah');
+            $biaya = $this->input->post('biaya');
 
-        $data = [
-            'id_nasabah' => $id_nasabah,
-            'biaya' => $biaya,
-            'deadline' => date('Y-m-d', strtotime('+30 days')),
-            'status_iuran' => 'belum bayar'
-        ];
+            $data = [
+                'id_nasabah' => $id_nasabah,
+                'biaya' => $biaya,
+                'deadline' => date('Y-m-d', strtotime('+30 days')),
+                'status_iuran' => 'belum bayar'
+            ];
 
-        $this->Admin_model->add_or_update_iuran($data);
+            $this->Admin_model->add_or_update_iuran($data);
 
-        $this->session->set_flashdata('success', 'Iuran berhasil diperbarui.');
-        redirect('admin/manage_iuran');
+            $this->session->set_flashdata('success', 'Iuran berhasil diperbarui.');
+            redirect('admin/manage_iuran');
+        }
+
+        // Ambil semua nasabah + iuran jika ada
+        $data['nasabah_list'] = $this->Admin_model->get_all_nasabah_with_iuran();
+        $data['view_name'] = 'admin/manage_iuran';
+        $this->load->view('admin/layout', $data);
     }
 
-    // Ambil semua nasabah + iuran jika ada
-    $data['nasabah_list'] = $this->Admin_model->get_all_nasabah_with_iuran();
-    $data['view_name'] = 'admin/manage_iuran';
-    $this->load->view('admin/layout', $data);
-}
+    public function logout()
+    {
+        // Hapus semua data session
+        $this->session->sess_destroy();
 
+        // Redirect ke halaman utama (landing page)
+        redirect('admin/login');
+    }
 }

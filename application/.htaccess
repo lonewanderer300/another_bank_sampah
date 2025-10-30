@@ -1,11 +1,6 @@
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-
-    # Set the base folder name (important!)
-    RewriteBase /BankSampah-main/
-
-    # Redirect non-existing files/folders to index.php
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ index.php/$1 [L]
+<IfModule authz_core_module>
+    Require all denied
+</IfModule>
+<IfModule !authz_core_module>
+    Deny from all
 </IfModule>

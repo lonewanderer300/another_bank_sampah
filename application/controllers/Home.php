@@ -119,10 +119,13 @@ class Home extends CI_Controller {
         $user = $this->Home_model->get_user_by_email($email);
 
         if ($user && password_verify($password, $user['password'])) {
-            
+
+            // --- Variabel untuk menyimpan agent_id ---
+            $agent_id_to_session = null;
+
             if ($user['role'] == 'agent') {
-                $agent_data = $this->Home_model->get_agent_status($user['id_user']);
-                
+                $agent_data = $this->Home_model->get_agent_status($user['id_user']); // Anda perlu memastikan fungsi ini mengembalikan 'id_agent'
+
                 if (!$agent_data) {
                     $this->session->set_flashdata('error', 'Data agen tidak ditemukan.');
                     redirect(base_url());
@@ -130,24 +133,45 @@ class Home extends CI_Controller {
                 }
 
                 if ($agent_data['status'] != 'aktif') {
-                    $message = ($agent_data['status'] == 'pending') 
-                        ? 'Akun Anda masih menunggu persetujuan Admin.' 
+                    $message = ($agent_data['status'] == 'pending')
+                        ? 'Akun Anda masih menunggu persetujuan Admin.'
                         : 'Akun Anda telah dinonaktifkan.';
                     $this->session->set_flashdata('error', $message);
                     redirect(base_url());
                     return;
                 }
+
+                // !! PENTING: Ambil id_agent dari $agent_data !!
+                // Pastikan model Home_model->get_agent_status mengembalikan id_agent
+                if (isset($agent_data['id_agent'])) {
+                    $agent_id_to_session = $agent_data['id_agent'];
+                } else {
+                    // Error jika model tidak mengembalikan id_agent
+                    $this->session->set_flashdata('error', 'Kesalahan: ID Agen tidak ditemukan. Hubungi admin.');
+                    redirect(base_url());
+                    return;
+                }
+
             }
 
+            // --- Susun Session Data ---
             $session_data = [
                 'user_id' => $user['id_user'],
-                'name'    => $user['name'],
+                'name'    => $user['name'], // Gunakan 'name' sesuai array $user
                 'email'   => $user['email'],
                 'role'    => $user['role'],
                 'logged_in' => TRUE
             ];
+
+            // --- Tambahkan agent_id ke session JIKA role adalah agent ---
+            if ($user['role'] == 'agent' && $agent_id_to_session !== null) {
+                $session_data['agent_id'] = $agent_id_to_session;
+            }
+
+            // --- Set Session ---
             $this->session->set_userdata($session_data);
 
+            // --- Redirect ---
             switch ($user['role']) {
                 case 'admin':
                     redirect('admin/dashboard');
@@ -155,7 +179,7 @@ class Home extends CI_Controller {
                 case 'agent':
                     redirect('agent/dashboard');
                     break;
-                default:
+                default: // default ke user
                     redirect('user/dashboard');
                     break;
             }
@@ -164,12 +188,6 @@ class Home extends CI_Controller {
             $this->session->set_flashdata('error', 'Email atau Password salah!');
             redirect(base_url());
         }
-    }
-
-    public function logout()
-    {
-        $this->session->sess_destroy();
-        redirect(base_url());
     }
     
     public function seed_agent_locations()
@@ -210,5 +228,17 @@ class Home extends CI_Controller {
 
         echo "<br><b>Proses selesai!</b> Anda sekarang bisa kembali ke halaman utama. Jangan lupa hapus fungsi ini dari controller.";
     }
+	public function filter_price_chart()
+{
+    $category_id = $this->input->post('category_id');
+    $month = $this->input->post('month');
+    $year = $this->input->post('year');
+
+    $this->load->model('Home_model');
+    $data = $this->Home_model->get_price_history_filtered($category_id, $month, $year);
+
+    echo json_encode($data);
+}
+
 }
 

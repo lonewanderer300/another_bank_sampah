@@ -1,6 +1,6 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="fw-bold">Selamat Datang, <?= html_escape($this->session->userdata('name')); ?>!</h4>
+        <h4 class="fw-bold">Selamat Datang, <?= html_escape($this->session->userdata('nama')); ?>!</h4>
         <p class="text-muted mb-0">Berikut adalah ringkasan aktivitas akun Anda.</p>
     </div>
     <a href="<?= base_url('user/waste_banks') ?>" class="btn btn-primary">
@@ -88,7 +88,7 @@
                                     <h6 class="mb-0">Setoran ke <?= html_escape($trans['agent_name'] ?? 'Pusat'); ?></h6>
                                     <small class="text-muted"><?= date('d M Y', strtotime($trans['tanggal_setor'])); ?></small>
                                 </div>
-                                <span class="fw-bold text-success">+ Rp <?= number_format($trans['total_harga'], 0, ',', '.'); ?></span>
+                                <span class="fw-bold text-success">+ Rp <?= number_format($trans['transaction_value'], 0, ',', '.'); ?></span>
                             </li>
                         <?php endforeach; ?>
                     <?php else: ?>

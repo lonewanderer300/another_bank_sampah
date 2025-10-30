@@ -73,23 +73,11 @@ class User_model extends CI_Model {
 
     public function get_nearest_agents($latitude, $longitude, $radius = 10, $limit = 5)
     {
-        // Rumus Haversine untuk menghitung jarak berdasarkan koordinat
+        // Pastikan memilih a.id_agent
         $this->db->select("
-            u.nama as name, 
-            u.phone,
-            u.address,
-            a.wilayah, 
-            u.latitude, 
-            u.longitude, 
-            (
-                6371 * acos(
-                    cos(radians(" . $latitude . ")) 
-                    * cos(radians(u.latitude)) 
-                    * cos(radians(u.longitude) - radians(" . $longitude . ")) 
-                    + sin(radians(" . $latitude . ")) 
-                    * sin(radians(u.latitude))
-                )
-            ) AS distance
+            u.nama as name, u.phone, u.address, a.wilayah,
+            u.latitude, u.longitude, a.id_agent,
+            ( 6371 * acos( cos(radians(" . $latitude . ")) * cos(radians(u.latitude)) * cos(radians(u.longitude) - radians(" . $longitude . ")) + sin(radians(" . $latitude . ")) * sin(radians(u.latitude)) ) ) AS distance
         ");
         $this->db->from('agent a');
         $this->db->join('users u', 'u.id_user = a.id_user');
@@ -97,18 +85,38 @@ class User_model extends CI_Model {
         $this->db->having('distance <=', $radius);
         $this->db->order_by('distance', 'ASC');
         $this->db->limit($limit);
-
         return $this->db->get()->result_array();
     }
 
     public function get_all_active_agents()
     {
-        $this->db->select('users.nama as name, users.phone, users.address, agent.wilayah, users.latitude, users.longitude');
+         // Pastikan memilih agent.id_agent
+        $this->db->select('users.nama as name, users.phone, users.address, agent.wilayah, users.latitude, users.longitude, agent.id_agent');
         $this->db->from('agent');
         $this->db->join('users', 'users.id_user = agent.id_user');
         $this->db->where('agent.status', 'aktif');
         return $this->db->get()->result_array();
     }
+
+    public function set_chosen_agent($user_id, $agent_id)
+    {
+        $this->db->where('id_user', $user_id);
+        return $this->db->update('users', ['id_agent_pilihan' => ($agent_id ? $agent_id : NULL)]);
+    }
+
+    /**
+     * Mengambil data satu agent berdasarkan ID (untuk ditampilkan jika sudah dipilih)
+     */
+     public function get_one_agent($agent_id)
+     {
+         // Pastikan memilih a.id_agent
+         $this->db->select('u.nama as name, u.phone, u.address, a.wilayah, u.latitude, u.longitude, a.id_agent');
+         $this->db->from('agent a');
+         $this->db->join('users u', 'a.id_user = u.id_user');
+         $this->db->where('a.id_agent', $agent_id);
+         $this->db->where('a.status', 'aktif');
+         return $this->db->get()->result_array();
+     }
 
     // --- FUNGSI BARU UNTUK HALAMAN TRANSAKSI (DIPERBAIKI) ---
 
@@ -126,13 +134,26 @@ class User_model extends CI_Model {
 
     // --- FUNGSI UNTUK HALAMAN PROFIL ---
 
+    // Pastikan fungsi get_user_profile() mengambil id_agent_pilihan
     public function get_user_profile($user_id)
     {
-        $this->db->where('id_user', $user_id);
-        return $this->db->get('users')->row_array();
+        // Pastikan mengambil semua kolom termasuk lat, lon, dan id_agent_pilihan
+        $this->db->select('users.*'); // Ambil semua kolom dari users
+        $this->db->from('users');
+        $this->db->where('users.id_user', $user_id);
+        return $this->db->get()->row_array();
     }
 
     public function update_profile($user_id, $data)
+    {
+        $this->db->where('id_user', $user_id);
+        return $this->db->update('users', $data);
+    }
+
+    /**
+     * Update data langsung ke tabel users berdasarkan user_id
+     */
+    public function update_profile_direct($user_id, $data)
     {
         $this->db->where('id_user', $user_id);
         return $this->db->update('users', $data);
@@ -163,35 +184,37 @@ class User_model extends CI_Model {
 
         return ($this->db->trans_status() === FALSE) ? false : $user_id;
     }
-	// --- FUNGSI UNTUK NASABAH ---
-public function get_nasabah_by_user($user_id)
-{
-    $this->db->where('id_users', $user_id);
-    return $this->db->get('nasabah')->row_array();
-}
 
-public function add_nasabah($data)
-{
-    return $this->db->insert('nasabah', $data);
-}
-public function simpan()
-{
-    $tipe = $this->input->post('tipe_nasabah');
-    $jumlah = $this->input->post('jumlah_nasabah');
-
-    if ($tipe === 'perorangan') {
-        $jumlah = 1; // force 1 for perorangan
+        // --- FUNGSI UNTUK NASABAH ---
+    public function get_nasabah_by_user($user_id)
+    {
+        $this->db->where('id_users', $user_id);
+        return $this->db->get('nasabah')->row_array();
     }
 
-    $data = [
-        'tipe_nasabah' => $tipe,
-        'jumlah_nasabah' => $jumlah,
-        // tambahkan kolom lain sesuai database kamu
-    ];
+    public function add_nasabah($data)
+    {
+        return $this->db->insert('nasabah', $data);
+    }
 
-    $this->db->insert('nasabah', $data);
-    redirect('nasabah');
-}
+    public function simpan()
+    {
+        $tipe = $this->input->post('tipe_nasabah');
+        $jumlah = $this->input->post('jumlah_nasabah');
+
+        if ($tipe === 'perorangan') {
+            $jumlah = 1; // force 1 for perorangan
+        }
+
+        $data = [
+            'tipe_nasabah' => $tipe,
+            'jumlah_nasabah' => $jumlah,
+            // tambahkan kolom lain sesuai database kamu
+        ];
+
+        $this->db->insert('nasabah', $data);
+        redirect('nasabah');
+    }
 
 
 }
