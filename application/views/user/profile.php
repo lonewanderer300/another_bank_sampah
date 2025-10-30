@@ -67,14 +67,35 @@
              <div class="card shadow-sm mb-4"> <div class="card-body">
                     <h6 class="fw-bold mb-3">Informasi Nasabah</h6>
 
-                    <?php if ($nasabah): // Jika data nasabah ADA ?>
-                        <div class="alert alert-info mb-0">
-                            <strong>Tipe Nasabah:</strong> <?= ucfirst(html_escape($nasabah['tipe_nasabah'])); ?><br>
-                            <?php if (isset($nasabah['jumlah_nasabah']) && $nasabah['jumlah_nasabah'] > 0 && $nasabah['tipe_nasabah'] == 'Kelompok'): ?>
-                                <strong>Jumlah Anggota:</strong> <?= html_escape($nasabah['jumlah_nasabah']); ?>
-                            <?php endif; ?>
-                        </div>
-                         <?php else: // Jika data nasabah BELUM ADA, tampilkan form ?>
+                    <?php if ($nasabah): ?>
+    <?php if ($nasabah['tipe_nasabah'] === 'Kelompok'): ?>
+        <div class="alert alert-success mb-0">
+            <strong>Tipe Nasabah:</strong> Kelompok<br>
+            <strong>Jumlah Anggota:</strong> <?= html_escape($nasabah['jumlah_nasabah']); ?><br>
+            <small class="text-muted">Anda tidak dapat mengubah kembali ke Perorangan.</small>
+        </div>
+    <?php else: ?>
+        <p class="text-muted small">Anda terdaftar sebagai Perorangan. Anda dapat meningkatkan ke Kelompok.</p>
+        <form action="<?= base_url('user/profile') ?>" method="POST">
+            <input type="hidden" name="add_nasabah" value="1">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="tipe_nasabah" class="form-label">Ubah ke</label>
+                    <select class="form-select" id="tipe_nasabah" name="tipe_nasabah" required>
+                        <option value="">-- Pilih Tipe --</option>
+                        <option value="Kelompok">Kelompok</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3" id="jumlah_nasabah_group">
+                    <label for="jumlah_nasabah" class="form-label">Jumlah Anggota</label>
+                    <input type="number" class="form-control" id="jumlah_nasabah" name="jumlah_nasabah" min="2" required placeholder="Minimal 2">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-warning">Ubah ke Kelompok</button>
+        </form>
+    <?php endif; ?>
+<?php else: ?>
+
                         <p class="text-muted small">Anda belum terdaftar sebagai nasabah perorangan atau kelompok.</p>
                         <form action="<?= base_url('user/profile') ?>" method="POST">
                             <input type="hidden" name="add_nasabah" value="1">
@@ -229,3 +250,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 }); // Akhir DOMContentLoaded
 </script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tipeSelect = document.getElementById('tipe_nasabah');
+    if (tipeSelect) {
+        const sudahKelompok = <?= isset($nasabah) && $nasabah && $nasabah['tipe_nasabah'] == 'Kelompok' ? 'true' : 'false' ?>;
+        if (sudahKelompok) {
+            tipeSelect.value = 'Kelompok';
+            tipeSelect.setAttribute('disabled', 'disabled');
+            document.getElementById('jumlah_nasabah_group').style.display = 'block';
+        }
+    }
+});
+</script>
+

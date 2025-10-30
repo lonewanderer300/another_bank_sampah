@@ -44,12 +44,14 @@
                         </td>
                         <td>
                             <?php if ($n['biaya']): ?>
-                                <form method="POST" class="d-inline">
-                                    <input type="hidden" name="update_iuran" value="1">
-                                    <input type="hidden" name="id_nasabah" value="<?= $n['id_nasabah'] ?>">
-                                    <input type="hidden" name="biaya" value="<?= $n['biaya'] ?>">
-                                    <button type="submit" class="btn btn-primary btn-sm">Perpanjang 30 Hari</button>
-                                </form>
+                                <form method="POST" class="d-flex">
+    <input type="hidden" name="update_iuran" value="1">
+    <input type="hidden" name="id_nasabah" value="<?= $n['id_nasabah'] ?>">
+    <input type="number" name="biaya" class="form-control form-control-sm me-2" 
+           value="<?= $n['biaya'] ?>" placeholder="Masukkan biaya" required>
+    <button type="submit" class="btn btn-success btn-sm">Simpan</button>
+</form>
+
                             <?php endif; ?>
                         </td>
                     </tr>

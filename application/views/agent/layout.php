@@ -69,12 +69,25 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'agent/laporan_transaksi' ? 'active' : '' ?>" href="<?= base_url('agent/laporan_transaksi') ?>">
+                <i class="bi bi-file-earmark-text"></i> Laporan Transaksi
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link <?= uri_string() == 'agent/profile' ? 'active' : '' ?>" href="<?= base_url('agent/profile') ?>">
                 <i class="bi bi-person-circle"></i> Profil
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'agent/petugas' ? 'active' : '' ?>" href="<?= base_url('agent/petugas') ?>">
+                <i class="bi bi-person-badge"></i> Petugas
+            </a>
+        </li>
     </ul>
-    <a href="<?= base_url('agent/logout') ?>" class="btn btn-outline-danger logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
+
+    <a href="<?= base_url('agent/logout') ?>" class="btn btn-outline-danger logout-link">
+        <i class="bi bi-box-arrow-right"></i> Logout
+    </a>
 </div>
 
 <div class="main-content">

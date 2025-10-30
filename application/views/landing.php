@@ -2,7 +2,6 @@
 
 <div x-data="{ loginModal: false, registerModal: false, registerRole: '', mobileMenuOpen: false }">
 
-    <!-- HEADER -->
     <header class="bg-white shadow-md fixed w-full z-20 md:hidden">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
@@ -18,7 +17,6 @@
                 </div>
             </div>
         </div>
-
         <div x-show="mobileMenuOpen" @click.away="mobileMenuOpen = false" class="md:hidden bg-white border-t">
             <nav class="px-2 pt-2 pb-4 space-y-1">
                 <button @click="loginModal = true; mobileMenuOpen = false" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">Masuk</button>
@@ -28,7 +26,6 @@
         </div>
     </header>
 
-    <!-- HERO -->
     <section class="relative bg-gray-900 text-white" style="background: url('https://images.unsplash.com/photo-1501594907352-04cda38ebc29') no-repeat center center; background-size: cover; height: 100vh; display: flex; justify-content: center; align-items: center;">
         <div class="absolute inset-0 bg-black opacity-50"></div>
         <div class="relative z-10 text-center py-24 px-4">
@@ -60,12 +57,12 @@
 
     <?php $this->load->view('partials/modal_auth'); ?>
 
-    <!-- IMPACT -->
     <section id="impact" class="py-16 text-center bg-gray-50">
         <h2 class="text-3xl font-bold mb-4">Dampak Kami Sejauh Ini</h2>
         <p class="text-gray-600 mb-10 max-w-2xl mx-auto px-4">Lihat bagaimana komunitas kami membuat perbedaan.</p>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto px-4">
+            
             <div class="bg-white p-6 rounded-xl shadow text-center flex flex-col justify-between">
                 <div>
                     <div class="text-3xl">♻️</div>
@@ -73,6 +70,15 @@
                     <p class="text-gray-600">Total Sampah Terkumpul</p>
                 </div>
                 <button onclick="toggleDetail('wasteDetail')" class="mt-4 text-blue-600 underline">Lihat Detail</button>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow text-center flex flex-col justify-between">
+                <div>
+                    <div class="text-3xl">🙋‍♂️🙋‍♀️</div>
+                    <h3 class="text-xl font-bold"><?= $summary['total_customers'] ?? 0; ?></h3>
+                    <p class="text-gray-600">Total Nasabah Terdaftar</p>
+                </div>
+                <button onclick="toggleDetail('customerDetail')" class="mt-4 text-blue-600 underline">Lihat Detail</button>
             </div>
 
             <div class="bg-white p-6 rounded-xl shadow text-center flex flex-col justify-between">
@@ -101,7 +107,6 @@
         </div>
     </section>
 
-    <!-- WASTE DETAIL -->
     <div id="wasteDetail" class="hidden max-w-5xl mx-auto bg-white p-6 -mt-8 mb-6 rounded-xl shadow relative z-10">
         <h3 class="text-xl font-bold mb-4 text-center">Rincian Statistik Sampah</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
@@ -114,7 +119,6 @@
         </div>
     </div>
 
-    <!-- AGENT DETAIL -->
     <div id="agentDetail" class="hidden max-w-5xl mx-auto bg-white p-6 -mt-8 mb-6 rounded-xl shadow relative z-10">
         <h3 class="text-xl font-bold mb-4 text-center">Distribusi Agen per Wilayah</h3>
         <div class="h-80">
@@ -122,7 +126,13 @@
         </div>
     </div>
 
-    <!-- PRICE DETAIL (single, clean, no duplicates) -->
+    <div id="customerDetail" class="hidden max-w-5xl mx-auto bg-white p-6 -mt-8 mb-6 rounded-xl shadow relative z-10">
+        <h3 class="text-xl font-bold mb-4 text-center">Distribusi Nasabah per Wilayah Agen</h3>
+        <div class="h-80">
+            <canvas id="customerDistributionChart"></canvas>
+        </div>
+    </div>
+
     <div id="priceDetail" class="hidden max-w-5xl mx-auto bg-white p-6 -mt-8 mb-6 rounded-xl shadow relative z-10">
         <h3 id="priceChartTitle" class="text-xl font-bold mb-4 text-center">Grafik Harga Sampah per Kategori</h3>
 
@@ -157,7 +167,6 @@
         </div>
     </div>
 
-    <!-- TABLE -->
     <section id="statistics" class="py-16 bg-white">
         <div class="max-w-6xl mx-auto px-4">
             <h3 class="text-2xl font-bold mb-4 text-center">Daftar Bank Sampah / Agen</h3>
@@ -190,7 +199,6 @@
         </div>
     </section>
 
-    <!-- MAP -->
     <section class="py-16 bg-gray-50">
         <div class="max-w-6xl mx-auto px-4">
             <h3 class="text-2xl font-bold mb-4 text-center">Peta Persebaran Agen</h3>
@@ -200,40 +208,59 @@
 
 </div>
 
-<!-- SCRIPTS -->
- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // Defensive helper to log and continue
+    
     function safeLog(...args) {
         if (window.console) console.log(...args);
     }
 
-    // Toggle detail: only one visible at a time
+    // Fungsi toggle detail (sudah benar)
     function toggleDetail(id) {
         try {
-            const all = ['wasteDetail', 'agentDetail', 'priceDetail'];
+            const all = ['wasteDetail', 'agentDetail', 'customerDetail', 'priceDetail'];
+            
+            const target = document.getElementById(id);
+            if (!target) return;
+            
+            const isAlreadyVisible = !target.classList.contains('hidden');
+
+            // Sembunyikan semua
             all.forEach(i => {
                 const el = document.getElementById(i);
                 if (el) el.classList.add('hidden');
             });
-            const target = document.getElementById(id);
-            if (target) target.classList.toggle('hidden');
+            
+            // Jika target tadi belum terlihat, tampilkan
+            if (!isAlreadyVisible) {
+                target.classList.remove('hidden');
+            }
         } catch (e) {
             safeLog('toggleDetail error', e);
         }
     }
     window.toggleDetail = toggleDetail;
 
-    // === Load PHP data safely (fallback to empty arrays) ===
+    // === Load PHP data safely ===
     const wasteStats = <?php echo json_encode($waste_stats ?? []); ?>;
     const monthlyStats = <?php echo json_encode($monthly_stats ?? []); ?>;
+    
+    // Data ini sudah otomatis menjadi Array JavaScript berkat 'echo'
     const agentDistributionLabels = <?php echo $agent_distribution_labels ?? json_encode([]); ?>;
     const agentDistributionData = <?php echo $agent_distribution_data ?? json_encode([]); ?>;
-    const priceHistory = <?php echo json_encode($price_history ?? []); ?>;
+    const customerDistributionLabels = <?php echo $customer_distribution_labels ?? json_encode([]); ?>;
+    const customerDistributionData = <?php echo $customer_distribution_data ?? json_encode([]); ?>;
+    
+    const initialPriceHistory = <?php echo json_encode($price_history ?? []); ?>;
+
 
     // --- Chart initializers with guards ---
     try {
@@ -253,125 +280,151 @@ document.addEventListener('DOMContentLoaded', () => {
             new Chart(barEl, { type: 'bar', data: { labels, datasets: [{ label: 'Total Sampah (kg)', data, backgroundColor: "#34d399" }] }, options: { responsive: true, maintainAspectRatio: false } });
         }
 
-        // Agent distribution
+        // Agent distribution (PERBAIKAN: Menghapus JSON.parse())
         const agentEl = document.getElementById('agentDistributionChart');
         if (agentEl && (agentDistributionLabels.length || agentDistributionData.length)) {
             new Chart(agentEl, {
                 type: 'bar',
-                data: { labels: JSON.parse(agentDistributionLabels || '[]'), datasets: [{ label: 'Jumlah Agen', data: JSON.parse(agentDistributionData || '[]'), backgroundColor: 'rgba(59,130,246,0.5)', borderColor: 'rgba(59,130,246,1)', borderWidth: 1 }] },
+                //               ▼▼ PERBAIKAN DI SINI ▼▼
+                data: { labels: agentDistributionLabels, datasets: [{ label: 'Jumlah Agen', data: agentDistributionData, backgroundColor: 'rgba(59,130,246,0.5)', borderColor: 'rgba(59,130,246,1)', borderWidth: 1 }] },
+                //               ▲▲ PERBAIKAN DI SINI ▲▲
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
         }
+
+        // Customer Distribution (PERBAIKAN: Menghapus JSON.parse())
+        const customerEl = document.getElementById('customerDistributionChart');
+        if (customerEl && (customerDistributionLabels.length || customerDistributionData.length)) {
+            new Chart(customerEl, {
+                type: 'bar',
+                //               ▼▼ PERBAIKAN DI SINI ▼▼
+                data: {
+                    labels: customerDistributionLabels,
+                    datasets: [{
+                        label: 'Jumlah Nasabah',
+                        data: customerDistributionData,
+                //               ▲▲ PERBAIKAN DI SINI ▲▲
+                        backgroundColor: 'rgba(251, 146, 60, 0.5)', // Oranye
+                        borderColor: 'rgba(251, 146, 60, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'x',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                    plugins: { title: { display: true, text: 'Distribusi Nasabah Berdasarkan Wilayah Agen Pilihan' } }
+                }
+            });
+        }
+
     } catch (err) {
         safeLog('chart init error', err);
     }
 
-    // === Price chart (dynamic, safe) ===
-    // === PRICE CHART (MULTI-LINE TIME SERIES) ===
-const priceCanvas = document.getElementById("wastePriceChart");
-if (priceCanvas) {
-    let priceChart;
-    const ctx = priceCanvas.getContext("2d");
+    // === PRICE CHART (Kode ini sudah benar, tidak diubah) ===
+    const priceCanvas = document.getElementById("wastePriceChart");
+    if (priceCanvas) {
+        let priceChart;
+        const ctx = priceCanvas.getContext("2d");
 
-    function randomColor() {
-        const hue = Math.floor(Math.random() * 360);
-        return `hsl(${hue}, 70%, 50%)`;
-    }
-
-    function groupByJenis(data) {
-        const grouped = {};
-        (data || []).forEach(item => {
-            const jenis = item.nama_jenis || "Tidak diketahui";
-            if (!grouped[jenis]) grouped[jenis] = [];
-            grouped[jenis].push({
-                x: item.tanggal_update,
-                y: Number(item.harga)
-            });
-        });
-        for (const key in grouped) {
-            grouped[key].sort((a, b) => new Date(a.x) - new Date(b.x));
+        function randomColor() {
+            const hue = Math.floor(Math.random() * 360);
+            return `hsl(${hue}, 70%, 50%)`;
         }
-        return grouped;
-    }
 
-    function renderChart(data, titleText = "Grafik Harga per Jenis Sampah") {
-        const grouped = groupByJenis(data);
-        const datasets = Object.keys(grouped).map(jenis => ({
-            label: jenis,
-            data: grouped[jenis],
-            borderColor: randomColor(),
-            backgroundColor: "transparent",
-            tension: 0.2
-        }));
-
-        if (priceChart) priceChart.destroy();
-
-        document.getElementById("priceChartTitle").innerText = titleText;
-
-        priceChart = new Chart(ctx, {
-            type: "line",
-            data: { datasets },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'nearest', intersect: false },
-                scales: {
-                    x: {
-                        type: "time",
-                        time: {
-                            unit: "week",
-                            tooltipFormat: "dd MMM yyyy",
-                            displayFormats: { week: "dd MMM" }
-                        },
-                        title: { display: true, text: "Tanggal" }
-                    },
-                    y: {
-                        title: { display: true, text: "Harga (Rp)" },
-                        ticks: {
-                            callback: v => 'Rp ' + v.toLocaleString('id-ID')
-                        }
-                    }
-                },
-                plugins: {
-                    legend: { position: 'top' },
-                    tooltip: { mode: 'index', intersect: false }
-                }
+        function groupByJenis(data) {
+            const grouped = {};
+            (data || []).forEach(item => {
+                const jenis = item.nama_jenis || "Tidak diketahui";
+                if (!grouped[jenis]) grouped[jenis] = [];
+                grouped[jenis].push({
+                    x: item.tanggal_update,
+                    y: Number(item.harga)
+                });
+            });
+            for (const key in grouped) {
+                grouped[key].sort((a, b) => new Date(a.x) - new Date(b.x));
             }
+            return grouped;
+        }
+
+        function renderChart(data, titleText = "Grafik Harga per Jenis Sampah") {
+            const grouped = groupByJenis(data);
+            const datasets = Object.keys(grouped).map(jenis => ({
+                label: jenis,
+                data: grouped[jenis],
+                borderColor: randomColor(),
+                backgroundColor: "transparent",
+                tension: 0.2
+            }));
+
+            if (priceChart) priceChart.destroy();
+
+            document.getElementById("priceChartTitle").innerText = titleText;
+
+            priceChart = new Chart(ctx, {
+                type: "line",
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'nearest', intersect: false },
+                    scales: {
+                        x: {
+                            type: "time",
+                            time: {
+                                unit: "week",
+                                tooltipFormat: "dd MMM yyyy",
+                                displayFormats: { week: "dd MMM" }
+                            },
+                            title: { display: true, text: "Tanggal" }
+                        },
+                        y: {
+                            title: { display: true, text: "Harga (Rp)" },
+                            ticks: {
+                                callback: v => 'Rp ' + v.toLocaleString('id-ID')
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+        }
+
+        renderChart(initialPriceHistory);
+
+        document.getElementById("applyFilter").addEventListener("click", function() {
+            const category = document.getElementById("filterCategory").value;
+            const month = document.getElementById("filterMonth").value;
+            const year = document.getElementById("filterYear").value;
+
+            fetch("<?= base_url('home/filter_price_chart'); ?>", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `category_id=${category}&month=${month}&year=${year}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                const catName = document.querySelector("#filterCategory option:checked").text;
+                const monthName = month ? new Date(0, month - 1).toLocaleString('id-ID', { month: 'long' }) : "";
+                const title = `Harga Sampah ${category ? "" + catName : ""} ${monthName} ${year || ""}`;
+                renderChart(data, title.trim());
+            })
+            .catch(err => console.error(err));
+        });
+
+        document.getElementById("resetFilter").addEventListener("click", () => {
+            document.getElementById("filterCategory").value = "";
+            document.getElementById("filterMonth").value = "";
+            document.getElementById("filterYear").value = "";
+            renderChart(initialPriceHistory, "Grafik Harga per Jenis Sampah");
         });
     }
-
-    // Initial render (safe)
-    renderChart(<?= json_encode($price_history ?? []); ?>);
-
-    // Filter button
-    document.getElementById("applyFilter").addEventListener("click", function() {
-        const category = document.getElementById("filterCategory").value;
-        const month = document.getElementById("filterMonth").value;
-        const year = document.getElementById("filterYear").value;
-
-        fetch("<?= base_url('home/filter_price_chart'); ?>", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: `category_id=${category}&month=${month}&year=${year}`
-        })
-        .then(res => res.json())
-        .then(data => {
-            const catName = document.querySelector("#filterCategory option:checked").text;
-            const monthName = month ? new Date(0, month - 1).toLocaleString('id-ID', { month: 'long' }) : "";
-            const title = `Harga Sampah ${category ? "Kategori " + catName : ""} ${monthName} ${year || ""}`;
-            renderChart(data, title.trim());
-        })
-        .catch(err => console.error(err));
-    });
-
-    // Reset button
-    document.getElementById("resetFilter").addEventListener("click", () => {
-        document.getElementById("filterCategory").value = "";
-        document.getElementById("filterMonth").value = "";
-        document.getElementById("filterYear").value = "";
-        renderChart(<?= json_encode($price_history ?? []); ?>, "Grafik Harga per Jenis Sampah");
-    });
-}
 
 
     // MAP (leaflet)

@@ -30,6 +30,26 @@ class Home_model extends CI_Model {
         return $this->db->get()->result_array();
     }
 
+    public function get_total_customers() {
+        $this->db->where('role', 'user'); // Filter hanya user dengan role 'user'
+        return $this->db->count_all_results('users'); // Hitung jumlah baris di tabel 'users'
+    }
+
+    /**
+     * Mengambil distribusi nasabah berdasarkan wilayah agent yang mereka pilih
+     */
+    public function get_customer_distribution_by_area()
+    {
+        $this->db->select('a.wilayah, COUNT(u.id_user) as total');
+        $this->db->from('users u');
+        $this->db->join('agent a', 'u.id_agent_pilihan = a.id_agent', 'inner'); // INNER JOIN hanya user yg sudah memilih agent
+        $this->db->where('u.role', 'user');
+        $this->db->where('a.wilayah IS NOT NULL'); // Pastikan wilayah agent ada
+        $this->db->group_by('a.wilayah');
+        $this->db->order_by('total', 'DESC');
+        return $this->db->get()->result_array();
+    }
+
     // ===============================
     // === 2️⃣ STATISTIK SAMPAH ===
     // ===============================
@@ -104,35 +124,21 @@ class Home_model extends CI_Model {
     }
 
     public function get_price_history_by_category($category_id)
-{
-    // Ambil dua tanggal terbaru dari histori harga
-    $dates = $this->db->select('tanggal_update')
-        ->distinct()
-        ->from('harga_histori')
-        ->order_by('tanggal_update', 'DESC')
-        ->limit(2)
-        ->get()
-        ->result_array();
+    {
+        $dates = $this->db->select('tanggal_update')->distinct()->from('harga_histori')->order_by('tanggal_update', 'DESC')->limit(2)->get()->result_array();
+        $latest_date = isset($dates[0]) ? $dates[0]['tanggal_update'] : null;
+        $previous_date = isset($dates[1]) ? $dates[1]['tanggal_update'] : null;
 
-    $latest_date = isset($dates[0]) ? $dates[0]['tanggal_update'] : null;
-    $previous_date = isset($dates[1]) ? $dates[1]['tanggal_update'] : null;
+        if (!$latest_date) return [];
 
-    if (!$latest_date) return [];
-
-    $sql = "
-        SELECT 
-            js.nama_jenis,
-            MAX(CASE WHEN hh.tanggal_update = ? THEN hh.harga END) AS harga_sekarang,
-            MAX(CASE WHEN hh.tanggal_update = ? THEN hh.harga END) AS harga_sebelumnya
-        FROM jenis_sampah js
-        LEFT JOIN harga_histori hh ON hh.id_jenis = js.id_jenis
-        WHERE js.id_kategori = ?
-        GROUP BY js.id_jenis, js.nama_jenis
-    ";
-
-    return $this->db->query($sql, [$latest_date, $previous_date, $category_id])->result_array();
-}
-
+        $this->db->select('js.nama_jenis');
+        $this->db->select("(SELECT harga FROM harga_histori WHERE id_jenis = js.id_jenis AND tanggal_update = '{$latest_date}') as harga_sekarang");
+        $this->db->select($previous_date ? "(SELECT harga FROM harga_histori WHERE id_jenis = js.id_jenis AND tanggal_update = '{$previous_date}') as harga_sebelumnya" : "0 as harga_sebelumnya");
+        $this->db->from('jenis_sampah js');
+        $this->db->where('js.id_kategori', $category_id);
+        
+        return $this->db->get()->result_array();
+    }
 
     // ===============================
     // === 5️⃣ LOGIN & REGISTER ===
@@ -162,26 +168,37 @@ class Home_model extends CI_Model {
         $this->db->where('email', $email);
         return $this->db->get('users')->row_array();
     }
-	public function get_price_history_filtered($category_id = null, $month = null, $year = null)
+
+    public function get_price_history_filtered($category_id = null, $month = null, $year = null)
+    {
+        $this->db->select('js.nama_jenis, hh.harga, hh.tanggal_update');
+        $this->db->from('harga_histori hh');
+        $this->db->join('jenis_sampah js', 'hh.id_jenis = js.id_jenis', 'left');
+
+        if ($category_id) {
+            $this->db->where('js.id_kategori', $category_id);
+        }
+        if ($month) {
+            $this->db->where('MONTH(hh.tanggal_update)', $month);
+        }
+        if ($year) {
+            $this->db->where('YEAR(hh.tanggal_update)', $year);
+        }
+
+        $this->db->order_by('hh.tanggal_update', 'ASC');
+        return $this->db->get()->result_array();
+    }
+	public function insert_nasabah($data)
 {
-    $this->db->select('js.nama_jenis, hh.harga, hh.tanggal_update');
-    $this->db->from('harga_histori hh');
-    $this->db->join('jenis_sampah js', 'hh.id_jenis = js.id_jenis', 'left');
-
-    if ($category_id) {
-        $this->db->where('js.id_kategori', $category_id);
-    }
-    if ($month) {
-        $this->db->where('MONTH(hh.tanggal_update)', $month);
-    }
-    if ($year) {
-        $this->db->where('YEAR(hh.tanggal_update)', $year);
-    }
-
-    $this->db->order_by('hh.tanggal_update', 'ASC');
-    return $this->db->get()->result_array();
+    $this->db->insert('nasabah', $data);
+    return $this->db->insert_id();
 }
 
+public function insert_iuran($data)
+{
+    $this->db->insert('iuran', $data);
+    return $this->db->insert_id();
+}
 
 }
 

@@ -55,26 +55,21 @@ class Agent extends CI_Controller {
     }
 
     public function transactions()
-    {
-        $agent_id = $this->session->userdata('agent_id');
+{
+    $agent_id = $this->session->userdata('agent_id');
 
-        // Data rekapitulasi
-		$data['categories'] = $this->Agent_model->get_all_categories();
+    $data['total_transactions'] = $this->Agent_model->count_agent_transactions($agent_id);
+    $data['total_income'] = $this->Agent_model->get_total_income_by_agent($agent_id);
+    $data['total_waste'] = $this->Agent_model->get_total_waste_by_agent($agent_id);
+    $data['transactions'] = $this->Agent_model->get_agent_transactions($agent_id);
+    $data['customers'] = $this->Agent_model->get_registered_customers_for_dropdown($agent_id);
+    $data['categories'] = $this->Agent_model->get_all_categories();
+    $data['petugas'] = $this->Agent_model->get_petugas_by_agent($agent_id);
 
-        $data['total_transactions'] = $this->Agent_model->count_agent_transactions($agent_id);
-        $data['total_income'] = $this->Agent_model->get_total_income_by_agent($agent_id); // Asumsi poin = income
-        $data['total_waste'] = $this->Agent_model->get_total_waste_by_agent($agent_id);
+    $data['view_name'] = 'agent/transactions';
+    $this->load->view('agent/layout', $data);
+}
 
-        // Data detail transaksi untuk tabel
-        $data['transactions'] = $this->Agent_model->get_agent_transactions($agent_id);
-
-        // Data untuk dropdown form
-        $data['customers'] = $this->Agent_model->get_registered_customers_for_dropdown($agent_id);
-        $data['waste_types'] = $this->Agent_model->get_all_waste_types_with_prices();
-
-        $data['view_name'] = 'agent/transactions';
-        $this->load->view('agent/layout', $data);
-    }
 
     /**
      * Fungsi untuk memproses penambahan transaksi baru
@@ -101,7 +96,11 @@ class Agent extends CI_Controller {
             // Format tanggal sesuai kebutuhan database (misal: YYYY-MM-DD HH:MM:SS)
             $transaction_date = date('Y-m-d H:i:s', strtotime($this->input->post('transaction_date')));
             $waste_items_input = $this->input->post('waste_items'); // Ini adalah array [id_jenis => berat]
-
+			if (isset($waste_items_input['id_jenis']) && isset($waste_items_input['berat'])) {
+    $waste_items_input = [
+        (int)$waste_items_input['id_jenis'] => (float)$waste_items_input['berat']
+    ];
+}
             // Filter item yang beratnya valid (lebih dari 0)
             $valid_waste_items = [];
             if (is_array($waste_items_input)) {
@@ -245,6 +244,118 @@ class Agent extends CI_Controller {
         $data['view_name'] = 'agent/profile';
         $this->load->view('agent/layout', $data);
     }
+	public function petugas()
+{
+    $agent_id = $this->session->userdata('agent_id');
+    $data['petugas'] = $this->Agent_model->get_petugas_by_agent($agent_id);
+    $data['view_name'] = 'agent/petugas';
+    $this->load->view('agent/layout', $data);
+}
+
+public function register_petugas()
+{
+    $agent_id = $this->session->userdata('agent_id');
+    $nama_petugas = $this->input->post('nama_petugas');
+
+    if (empty($nama_petugas)) {
+        $this->session->set_flashdata('error_form', 'Nama petugas tidak boleh kosong.');
+    } else {
+        if ($this->Agent_model->add_petugas($agent_id, $nama_petugas)) {
+            $this->session->set_flashdata('success', 'Petugas berhasil ditambahkan.');
+        } else {
+            $this->session->set_flashdata('error_form', 'Gagal menambahkan petugas.');
+        }
+    }
+    redirect('agent/petugas');
+}
+public function delete_petugas($id_petugas)
+{
+    $agent_id = $this->session->userdata('agent_id');
+
+    if ($this->Agent_model->delete_petugas($id_petugas, $agent_id)) {
+        $this->session->set_flashdata('success', 'Petugas berhasil dihapus.');
+    } else {
+        $this->session->set_flashdata('error_form', 'Gagal menghapus petugas.');
+    }
+
+    redirect('agent/petugas');
+}
+public function get_jenis_by_kategori()
+{
+    $id_kategori = $this->input->get('id_kategori');
+    $result = $this->Agent_model->get_jenis_by_kategori($id_kategori);
+    echo json_encode($result);
+}
+	public function laporan_transaksi()
+{
+    $agent_id = $this->session->userdata('agent_id');
+    $bulan = $this->input->get('bulan');
+    $tahun = $this->input->get('tahun');
+
+    $data['bulan'] = $bulan;
+    $data['tahun'] = $tahun;
+    $data['laporan'] = $this->Agent_model->get_laporan_transaksi($agent_id, $bulan, $tahun);
+
+    $data['view_name'] = 'agent/laporan_transaksi';
+    $this->load->view('agent/layout', $data);
+}
+
+public function export_excel()
+{
+    $agent_id = $this->session->userdata('agent_id');
+    $bulan = $this->input->get('bulan');
+    $tahun = $this->input->get('tahun');
+
+    $laporan = $this->Agent_model->get_laporan_transaksi($agent_id, $bulan, $tahun);
+
+    header("Content-Type: application/vnd.ms-excel");
+    header("Content-Disposition: attachment; filename=Laporan_Transaksi_Agent_{$bulan}_{$tahun}.xls");
+
+    echo "<table border='1'>
+        <tr>
+            <th>NO</th>
+            <th>TANGGAL</th>
+            <th>NO REKENING</th>
+            <th>NAMA NASABAH</th>
+            <th>TIPE SAMPAH</th>
+            <th>JENIS</th>
+            <th>KODE</th>
+            <th>URAIAN BARANG</th>
+            <th>JUMLAH (Kg)</th>
+            <th>JUMLAH BOTOL (Biji)</th>
+            <th>HARGA SATUAN (Rp)</th>
+            <th>PENDAPATAN (Rp)</th>
+            <th>TARIK TUNAI (Rp)</th>
+            <th>SALDO AKHIR (Rp)</th>
+            <th>PETUGAS</th>
+        </tr>";
+
+    $no = 1;
+    foreach ($laporan as $row) {
+        echo "<tr>
+            <td>{$no}</td>
+            <td>{$row['tanggal_setor']}</td>
+            <td>{$row['no_rekening']}</td>
+            <td>{$row['nama_nasabah']}</td>
+            <td>{$row['tipe_sampah']}</td>
+            <td>{$row['nama_kategori']}</td>
+            <td>{$row['kode']}</td>
+            <td>{$row['nama_jenis']}</td>
+            <td>{$row['berat']}</td>
+            <td>{$row['jumlah_botol']}</td>
+            <td>{$row['harga']}</td>
+            <td>{$row['pendapatan']}</td>
+            <td>{$row['tarik_tunai']}</td>
+            <td>{$row['saldo_akhir']}</td>
+            <td>{$row['nama_petugas']}</td>
+        </tr>";
+        $no++;
+    }
+
+    echo "</table>";
+}
+
+
 
     public function logout()
     {
@@ -254,10 +365,4 @@ class Agent extends CI_Controller {
         // Redirect ke halaman utama (landing page)
         redirect(base_url());
     }
-	public function get_jenis_by_kategori($kategori_id)
-{
-    $data = $this->Agent_model->get_waste_types_by_category($kategori_id);
-    echo json_encode($data);
-}
-
 }

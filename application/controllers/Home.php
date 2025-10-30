@@ -11,10 +11,11 @@ class Home extends CI_Controller {
 
     public function index()
     {
-        // 🔹 Ambil data summary
+        // 🔹 Ambil data summary (DENGAN TOTAL CUSTOMERS)
         $data['summary'] = [
-            'total_waste'   => $this->Home_model->get_total_waste(),
-            'active_agents' => $this->Home_model->get_active_agents()
+            'total_waste'     => $this->Home_model->get_total_waste(),
+            'active_agents'   => $this->Home_model->get_active_agents(),
+            'total_customers' => $this->Home_model->get_total_customers() // <-- DIKEMBALIKAN
         ];
 
         // 🔹 Ambil statistik per jenis sampah (pie chart)
@@ -37,7 +38,7 @@ class Home extends CI_Controller {
             ];
         }
         
-        // 🔹 BARU: Ambil data persebaran agen untuk grafik
+        // 🔹 Ambil data persebaran agen untuk grafik
         $agent_distribution = $this->Home_model->get_agent_distribution_by_area();
         $data['agent_distribution_labels'] = json_encode(array_column($agent_distribution, 'wilayah'));
         $data['agent_distribution_data'] = json_encode(array_column($agent_distribution, 'total'));
@@ -60,20 +61,21 @@ class Home extends CI_Controller {
             $data['agents'][] = $agent_data;
         }
 
-        // 🔹 BARU: Ambil data untuk fitur harga
+        // 🔹 DIKEMBALIKAN: Ambil data persebaran nasabah
+        $customer_distribution = $this->Home_model->get_customer_distribution_by_area();
+        $data['customer_distribution_labels'] = json_encode(array_column($customer_distribution, 'wilayah'));
+        $data['customer_distribution_data'] = json_encode(array_column($customer_distribution, 'total'));
+
+
+        // 🔹 BARU: Ambil data untuk fitur harga (dari file upload)
         $data['latest_prices'] = $this->Home_model->get_latest_prices_summary();
         $data['waste_categories'] = $this->Home_model->get_waste_categories();
         
-        // Ambil data chart untuk kategori pertama sebagai default
-        $first_category_id = !empty($data['waste_categories']) ? $data['waste_categories'][0]['id_kategori'] : null;
-        $price_history = [];
-        if($first_category_id) {
-            $price_history = $this->Home_model->get_price_history_by_category($first_category_id);
-        }
+        // Ambil data chart histori harga (unfiltered) untuk render awal
+        $price_history = $this->Home_model->get_price_history_filtered(null, null, null);
         
-        $data['price_chart_labels'] = json_encode(array_column($price_history, 'nama_jenis'));
-        $data['price_chart_current'] = json_encode(array_column($price_history, 'harga_sekarang'));
-        $data['price_chart_previous'] = json_encode(array_column($price_history, 'harga_sebelumnya'));
+        // Kirim data mentah $price_history ke view
+        $data['price_history'] = $price_history; 
 
         // 🔹 Tambahan data untuk layout
         $data['title']   = "Garbage Bank - Home";
@@ -84,33 +86,62 @@ class Home extends CI_Controller {
     }
 
     public function register()
-    {
-        $role = $this->input->post('role');
-        
-        $userData = [
-            'nama' => $this->input->post('name'),
-            'email' => $this->input->post('email'),
-            'password' => password_hash($this->input->post('password'), PASSWORD_BCRYPT),
-            'phone' => $this->input->post('phone'),
-            'role' => $role
+{
+    $role = $this->input->post('role');
+    
+    $userData = [
+        'nama' => $this->input->post('name'),
+        'email' => $this->input->post('email'),
+        'password' => password_hash($this->input->post('password'), PASSWORD_BCRYPT),
+        'phone' => $this->input->post('phone'),
+        'role' => $role
+    ];
+
+    $userId = $this->Home_model->insert_user($userData);
+
+    if ($role === 'agent' && $userId) {
+        // =========================
+        // Jika role = agent
+        // =========================
+        $agentData = [
+            'id_user' => $userId,
+            'wilayah' => $this->input->post('wilayah'),
         ];
+        $this->Home_model->insert_agent($agentData);
+        
+        $this->session->set_flashdata('success', 'Registrasi sebagai Agent berhasil! Akun Anda sedang menunggu persetujuan dari Admin.');
+    
+    } elseif ($role === 'user' && $userId) {
+        // =========================
+        // Jika role = user (nasabah perorangan)
+        // =========================
+        $nasabahData = [
+            'id_users' => $userId,
+            'tipe_nasabah' => 'Perorangan',
+            'jumlah_nasabah' => 1
+        ];
+        $id_nasabah = $this->Home_model->insert_nasabah($nasabahData);
 
-        $userId = $this->Home_model->insert_user($userData);
-
-        if ($role === 'agent' && $userId) {
-            $agentData = [
-                'id_user' => $userId,
-                'wilayah' => $this->input->post('wilayah'),
+        // Tambahkan biaya iuran default (misalnya 18000)
+        if ($id_nasabah) {
+            $iuranData = [
+                'id_nasabah' => $id_nasabah,
+                'biaya' => 18000, // biaya iuran default
+                'deadline' => date('Y-m-d', strtotime('+1 month')), // contoh deadline 1 bulan dari sekarang
+                'status_iuran' => 'belum bayar'
             ];
-            $this->Home_model->insert_agent($agentData);
-            
-            $this->session->set_flashdata('success', 'Registrasi sebagai Agent berhasil! Akun Anda sedang menunggu persetujuan dari Admin.');
-        } else {
-            $this->session->set_flashdata('success', 'Registrasi berhasil! Silakan login.');
+            $this->Home_model->insert_iuran($iuranData);
         }
 
-        redirect(base_url());
+        $this->session->set_flashdata('success', 'Registrasi berhasil! Anda telah terdaftar sebagai Nasabah Perorangan.');
+    
+    } else {
+        $this->session->set_flashdata('success', 'Registrasi berhasil! Silakan login.');
     }
+
+    redirect(base_url());
+}
+
     
     public function login()
     {
@@ -141,12 +172,9 @@ class Home extends CI_Controller {
                     return;
                 }
 
-                // !! PENTING: Ambil id_agent dari $agent_data !!
-                // Pastikan model Home_model->get_agent_status mengembalikan id_agent
                 if (isset($agent_data['id_agent'])) {
                     $agent_id_to_session = $agent_data['id_agent'];
                 } else {
-                    // Error jika model tidak mengembalikan id_agent
                     $this->session->set_flashdata('error', 'Kesalahan: ID Agen tidak ditemukan. Hubungi admin.');
                     redirect(base_url());
                     return;
@@ -157,18 +185,16 @@ class Home extends CI_Controller {
             // --- Susun Session Data ---
             $session_data = [
                 'user_id' => $user['id_user'],
-                'name'    => $user['name'], // Gunakan 'name' sesuai array $user
+                'name'    => $user['name'],
                 'email'   => $user['email'],
                 'role'    => $user['role'],
                 'logged_in' => TRUE
             ];
 
-            // --- Tambahkan agent_id ke session JIKA role adalah agent ---
             if ($user['role'] == 'agent' && $agent_id_to_session !== null) {
                 $session_data['agent_id'] = $agent_id_to_session;
             }
 
-            // --- Set Session ---
             $this->session->set_userdata($session_data);
 
             // --- Redirect ---
@@ -192,6 +218,7 @@ class Home extends CI_Controller {
     
     public function seed_agent_locations()
     {
+        // ... (Fungsi ini tidak berubah) ...
         $agents_to_update = $this->db->where('latitude IS NULL')->get('agent')->result_array();
 
         $locations = [
@@ -228,17 +255,21 @@ class Home extends CI_Controller {
 
         echo "<br><b>Proses selesai!</b> Anda sekarang bisa kembali ke halaman utama. Jangan lupa hapus fungsi ini dari controller.";
     }
+
+	// FUNGSI BARU UNTUK FILTER HARGA (dari file upload)
 	public function filter_price_chart()
-{
-    $category_id = $this->input->post('category_id');
-    $month = $this->input->post('month');
-    $year = $this->input->post('year');
+	{
+	    $category_id = $this->input->post('category_id');
+	    $month = $this->input->post('month');
+	    $year = $this->input->post('year');
 
-    $this->load->model('Home_model');
-    $data = $this->Home_model->get_price_history_filtered($category_id, $month, $year);
+	    $this->load->model('Home_model'); 
+	    
+	    $data = $this->Home_model->get_price_history_filtered($category_id, $month, $year);
 
-    echo json_encode($data);
+	    $this->output
+	        ->set_content_type('application/json')
+	        ->set_output(json_encode($data));
+	}
+
 }
-
-}
-

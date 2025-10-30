@@ -78,36 +78,19 @@ class Admin extends CI_Controller {
     }
 
     public function waste_prices()
-{
-    // Update existing price
-    if ($this->input->post('update_price')) {
-        $waste_id = $this->input->post('id_jenis');
-        $new_price = $this->input->post('harga');
-        $this->Admin_model->update_waste_price($waste_id, $new_price);
-        $this->session->set_flashdata('success', 'Harga sampah berhasil diperbarui.');
-        redirect('admin/waste_prices');
+    {
+        if ($this->input->post('update_price')) {
+            $waste_id = $this->input->post('id_jenis');
+            $new_price = $this->input->post('harga');
+            $this->Admin_model->update_waste_price($waste_id, $new_price);
+            $this->session->set_flashdata('success', 'Harga sampah berhasil diperbarui.');
+            redirect('admin/waste_prices');
+        }
+
+        $data['waste_types'] = $this->Admin_model->get_all_waste_types();
+        $data['view_name'] = 'admin/waste_prices';
+        $this->load->view('admin/layout', $data);
     }
-
-    // Add new waste type
-    if ($this->input->post('add_waste_type')) {
-        $data = [
-            'id_kategori' => $this->input->post('id_kategori'),
-            'nama_jenis'  => $this->input->post('nama_jenis'),
-            'satuan'      => $this->input->post('satuan'),
-            'harga'       => $this->input->post('harga')
-        ];
-
-        $this->Admin_model->add_waste_type($data);
-        $this->session->set_flashdata('success', 'Jenis sampah baru berhasil ditambahkan.');
-        redirect('admin/waste_prices');
-    }
-
-    $data['waste_types'] = $this->Admin_model->get_all_waste_types();
-    $data['categories'] = $this->Admin_model->get_all_categories();
-    $data['view_name'] = 'admin/waste_prices';
-    $this->load->view('admin/layout', $data);
-}
-
 
     public function manage_agents()
     {

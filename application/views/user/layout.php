@@ -77,6 +77,12 @@
                 <i class="bi bi-person-circle"></i> Profil
             </a>
         </li>
+		<li class="nav-item">
+    <a class="nav-link <?= uri_string() == 'user/rekening' ? 'active' : '' ?>" href="<?= base_url('user/rekening') ?>">
+        <i class="bi bi-credit-card"></i> Rekening
+    </a>
+</li>
+
     </ul>
     <a href="<?= base_url('user/logout') ?>" class="btn btn-outline-danger logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
 </div>

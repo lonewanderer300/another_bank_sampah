@@ -71,14 +71,28 @@ class User_model extends CI_Model {
 
     // --- FUNGSI UNTUK HALAMAN BANK SAMPAH ---
 
-    public function get_nearest_agents($latitude, $longitude, $radius = 10, $limit = 5)
+    // Pastikan parameter $limit ada dan digunakan
+    public function get_nearest_agents($latitude, $longitude, $radius = 10, $limit = 4)
     {
-        // Pastikan memilih a.id_agent
+        // PERBAIKAN: Hapus komentar /* ... kolom ... */ dari select string
         $this->db->select("
-            u.nama as name, u.phone, u.address, a.wilayah,
-            u.latitude, u.longitude, a.id_agent,
-            ( 6371 * acos( cos(radians(" . $latitude . ")) * cos(radians(u.latitude)) * cos(radians(u.longitude) - radians(" . $longitude . ")) + sin(radians(" . $latitude . ")) * sin(radians(u.latitude)) ) ) AS distance
-        ");
+            u.nama as name,
+            u.phone,
+            u.address,
+            a.wilayah,
+            u.latitude,
+            u.longitude,
+            a.id_agent,
+            (
+                6371 * acos(
+                    cos(radians(" . $latitude . "))
+                    * cos(radians(u.latitude))
+                    * cos(radians(u.longitude) - radians(" . $longitude . "))
+                    + sin(radians(" . $latitude . "))
+                    * sin(radians(u.latitude))
+                )
+            ) AS distance
+        ", FALSE); // Tambahkan FALSE agar CI tidak mencoba 'melindungi' formula Haversine
         $this->db->from('agent a');
         $this->db->join('users u', 'u.id_user = a.id_user');
         $this->db->where('a.status', 'aktif');
@@ -100,8 +114,18 @@ class User_model extends CI_Model {
 
     public function set_chosen_agent($user_id, $agent_id)
     {
+        $update_value = $agent_id ?: NULL;
+        log_message('debug', 'User_model::set_chosen_agent - User ID: ' . $user_id . ' | Update Value: ' . var_export($update_value, true));
         $this->db->where('id_user', $user_id);
-        return $this->db->update('users', ['id_agent_pilihan' => ($agent_id ? $agent_id : NULL)]);
+        $result = $this->db->update('users', ['id_agent_pilihan' => $update_value]);
+        if (!$result) {
+            $db_error = $this->db->error();
+            // Log error PENTING INI
+            log_message('error', 'User_model::set_chosen_agent - Update GAGAL. DB Error: ' . print_r($db_error, true));
+        } else {
+             log_message('debug', 'User_model::set_chosen_agent - Update BERHASIL.');
+        }
+        return $result;
     }
 
     /**
@@ -195,7 +219,30 @@ class User_model extends CI_Model {
     public function add_nasabah($data)
     {
         return $this->db->insert('nasabah', $data);
+
     }
+	public function reset_iuran($id_user, $biaya, $deadline)
+{
+    // Cari id_nasabah berdasarkan id_users
+    $nasabah = $this->db->get_where('nasabah', ['id_users' => $id_user])->row_array();
+
+    if ($nasabah) {
+        $data = [
+            'id_nasabah' => $nasabah['id_nasabah'],
+            'biaya' => $biaya,
+            'deadline' => $deadline,
+            'status_iuran' => 'belum bayar'
+        ];
+
+        // Hapus iuran lama jika ada, lalu buat ulang
+        $this->db->where('id_nasabah', $nasabah['id_nasabah']);
+        $this->db->delete('iuran');
+        return $this->db->insert('iuran', $data);
+    }
+
+    return false;
+}
+
 
     public function simpan()
     {
@@ -215,6 +262,27 @@ class User_model extends CI_Model {
         $this->db->insert('nasabah', $data);
         redirect('nasabah');
     }
+// === REKENING USER ===
+public function get_user_rekening($user_id)
+{
+    return $this->db->get_where('rekening_user', ['id_user' => $user_id])->row_array();
+}
+
+public function add_or_update_rekening($user_id, $no_rekening)
+{
+    $existing = $this->get_user_rekening($user_id);
+    if ($existing) {
+        $this->db->where('id_user', $user_id);
+        return $this->db->update('rekening_user', ['no_rekening' => $no_rekening]);
+    } else {
+        return $this->db->insert('rekening_user', [
+            'id_user' => $user_id,
+            'no_rekening' => $no_rekening
+        ]);
+    }
+}
+
+
 
 
 }

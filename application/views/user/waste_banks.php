@@ -19,7 +19,7 @@
     <?php endif; ?>
 
     <div class="mb-3 text-end" id="reset-button-container" style="display: none;">
-        <button class="btn btn-sm btn-outline-secondary" onclick="resetSelection()">Tampilkan Semua Bank Sampah</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="resetSelection()">Batalkan Pilihan</button>
     </div>
 
     <div class="row" id="agent-list-container">
