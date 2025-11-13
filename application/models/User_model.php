@@ -161,11 +161,15 @@ class User_model extends CI_Model {
     // Pastikan fungsi get_user_profile() mengambil id_agent_pilihan
     public function get_user_profile($user_id)
     {
-        // Pastikan mengambil semua kolom termasuk lat, lon, dan id_agent_pilihan
-        $this->db->select('users.*'); // Ambil semua kolom dari users
+        // PERBAIKAN: Join tabel nasabah untuk mengambil tipe dan jumlah nasabah
+        $this->db->select('users.*, nasabah.tipe_nasabah, nasabah.jumlah_nasabah');
         $this->db->from('users');
+        // Join ke tabel nasabah menggunakan id_user = id_users
+        $this->db->join('nasabah', 'nasabah.id_users = users.id_user', 'left'); 
         $this->db->where('users.id_user', $user_id);
-        return $this->db->get()->row_array();
+        
+        $query = $this->db->get();
+        return $query->row_array();
     }
 
     public function update_profile($user_id, $data)
@@ -222,27 +226,58 @@ class User_model extends CI_Model {
 
     }
 	public function reset_iuran($id_user, $biaya, $deadline)
-{
-    // Cari id_nasabah berdasarkan id_users
-    $nasabah = $this->db->get_where('nasabah', ['id_users' => $id_user])->row_array();
+    {
+        // Cari id_nasabah berdasarkan id_users
+        $nasabah = $this->db->get_where('nasabah', ['id_users' => $id_user])->row_array();
 
-    if ($nasabah) {
-        $data = [
-            'id_nasabah' => $nasabah['id_nasabah'],
-            'biaya' => $biaya,
-            'deadline' => $deadline,
-            'status_iuran' => 'belum bayar'
-        ];
+        if ($nasabah) {
+            $data = [
+                'id_nasabah' => $nasabah['id_nasabah'],
+                'biaya' => $biaya,
+                'deadline' => $deadline,
+                'status_iuran' => 'belum bayar'
+            ];
 
-        // Hapus iuran lama jika ada, lalu buat ulang
-        $this->db->where('id_nasabah', $nasabah['id_nasabah']);
-        $this->db->delete('iuran');
-        return $this->db->insert('iuran', $data);
+            // Hapus iuran lama jika ada, lalu buat ulang
+            $this->db->where('id_nasabah', $nasabah['id_nasabah']);
+            $this->db->delete('iuran');
+            return $this->db->insert('iuran', $data);
+        }
+
+        return false;
     }
 
-    return false;
-}
+    public function get_user_iuran($user_id)
+    {
+        // Join nasabah dan iuran untuk mendapatkan iuran berdasarkan id_users
+        // Ambil data biaya dan deadline dari tabel iuran
+        $this->db->select('i.biaya, i.deadline, i.status_iuran');
+        $this->db->from('iuran i');
+        $this->db->join('nasabah n', 'n.id_nasabah = i.id_nasabah');
+        $this->db->where('n.id_users', $user_id);
+        $this->db->order_by('i.id_iuran', 'DESC'); 
+        $this->db->limit(1);
 
+        $query = $this->db->get();
+        $result = $query->row_array();
+
+        if ($result) {
+            // Mengubah format tanggal agar sesuai untuk tampilan
+            $result['due_date'] = date('d F Y', strtotime($result['deadline']));
+            
+            // Mengubah status database ('sudah bayar', 'belum bayar') 
+            // ke format yang lebih ringkas ('paid', 'unpaid') sesuai yang diharapkan view
+            $result['status'] = ($result['status_iuran'] === 'sudah bayar') ? 'paid' : 'unpaid';
+            
+            // Hapus kolom asli yang tidak diperlukan di controller/view
+            unset($result['deadline']);
+            unset($result['status_iuran']);
+            unset($result['id_nasabah']);
+            unset($result['id_iuran']);
+        }
+        
+        return $result;
+    }
 
     public function simpan()
     {
@@ -263,26 +298,24 @@ class User_model extends CI_Model {
         redirect('nasabah');
     }
 // === REKENING USER ===
-public function get_user_rekening($user_id)
-{
-    return $this->db->get_where('rekening_user', ['id_user' => $user_id])->row_array();
-}
-
-public function add_or_update_rekening($user_id, $no_rekening)
-{
-    $existing = $this->get_user_rekening($user_id);
-    if ($existing) {
-        $this->db->where('id_user', $user_id);
-        return $this->db->update('rekening_user', ['no_rekening' => $no_rekening]);
-    } else {
-        return $this->db->insert('rekening_user', [
-            'id_user' => $user_id,
-            'no_rekening' => $no_rekening
-        ]);
+    public function get_user_rekening($user_id)
+    {
+        return $this->db->get_where('rekening_user', ['id_user' => $user_id])->row_array();
     }
-}
 
-
+    public function add_or_update_rekening($user_id, $no_rekening)
+    {
+        $existing = $this->get_user_rekening($user_id);
+        if ($existing) {
+            $this->db->where('id_user', $user_id);
+            return $this->db->update('rekening_user', ['no_rekening' => $no_rekening]);
+        } else {
+            return $this->db->insert('rekening_user', [
+                'id_user' => $user_id,
+                'no_rekening' => $no_rekening
+            ]);
+        }
+    }
 
 
 }

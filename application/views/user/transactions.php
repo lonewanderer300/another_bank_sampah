@@ -42,6 +42,13 @@
             </div>
         </div>
     </div>
+	<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="card-title fw-bold mb-0">Semua Transaksi</h5>
+    <a href="<?= base_url('user/export_transactions_excel'); ?>" class="btn btn-success">
+        <i class="bi bi-file-earmark-excel"></i> Download Excel
+    </a>
+</div>
+
 
     <div class="card shadow-sm border-0">
         <div class="card-body">

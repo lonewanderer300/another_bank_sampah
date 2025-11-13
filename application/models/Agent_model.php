@@ -230,85 +230,118 @@ class Agent_model extends CI_Model {
     }
 	// --- PETUGAS (staff agent) ---
 
-public function get_petugas_by_agent($agent_id)
-{
-    $this->db->where('id_agent', $agent_id);
-    $query = $this->db->get('petugas');
-    return $query->result_array();
-}
-
-public function add_petugas($agent_id, $nama_petugas)
-{
-    $data = [
-        'id_agent' => $agent_id,
-        'nama_petugas' => $nama_petugas
-    ];
-    return $this->db->insert('petugas', $data);
-}
-public function delete_petugas($id_petugas, $agent_id)
-{
-    // Pastikan hanya bisa menghapus petugas milik agent yang login
-    $this->db->where('id_petugas', $id_petugas);
-    $this->db->where('id_agent', $agent_id);
-    return $this->db->delete('petugas');
-}
-public function get_all_categories()
-{
-    return $this->db->get('kategori_sampah')->result_array();
-}
-
-public function get_jenis_by_kategori($id_kategori)
-{
-    $this->db->select('js.id_jenis, js.nama_jenis, hh.harga');
-    $this->db->from('jenis_sampah js');
-    $this->db->join('(SELECT id_jenis, MAX(id_histori) as latest FROM harga_histori GROUP BY id_jenis) as sub', 'sub.id_jenis = js.id_jenis', 'inner');
-    $this->db->join('harga_histori hh', 'hh.id_histori = sub.latest', 'inner');
-    $this->db->where('js.id_kategori', $id_kategori);
-    return $this->db->get()->result_array();
-}
-public function get_laporan_transaksi($agent_id, $bulan = null, $tahun = null)
-{
-    $this->db->select("
-        ts.tanggal_setor,
-        ru.no_rekening,
-        u.nama AS nama_nasabah,
-        ts.id_setoran,
-        ts.total_poin AS pendapatan,
-        js.kode,
-        js.nama_jenis,
-        js.id_jenis,
-        ks.nama_kategori,
-        ts.total_berat,
-        ds.berat,
-        th.jumlah AS tarik_tunai,
-        u.saldo AS saldo_akhir,
-        tps.nama_tipe AS tipe_sampah,
-        p.nama_petugas,
-        hh.harga,
-        ds.berat AS jumlah_kg,
-        0 AS jumlah_botol
-    ");
-    $this->db->from('transaksi_setoran ts');
-    $this->db->join('detail_setoran ds', 'ds.id_setoran = ts.id_setoran', 'left');
-    $this->db->join('jenis_sampah js', 'js.id_jenis = ds.id_jenis', 'left');
-    $this->db->join('kategori_sampah ks', 'ks.id_kategori = js.id_kategori', 'left');
-    $this->db->join('harga_histori hh', 'hh.id_jenis = js.id_jenis', 'left');
-    $this->db->join('users u', 'u.id_user = ts.id_user', 'left');
-    $this->db->join('rekening_user ru', 'ru.id_user = u.id_user', 'left');
-    $this->db->join('tipe_sampah tps', 'tps.id_tipe_sampah = js.id_tipe_sampah', 'left');
-    $this->db->join('transaksi_penarikan th', 'th.id_user = u.id_user', 'left');
-    $this->db->join('petugas p', 'p.id_agent = ts.id_agent', 'left');
-    $this->db->where('ts.id_agent', $agent_id);
-
-    if ($bulan && $tahun) {
-        $this->db->where('MONTH(ts.tanggal_setor)', $bulan);
-        $this->db->where('YEAR(ts.tanggal_setor)', $tahun);
+    public function get_petugas_by_agent($agent_id)
+    {
+        $this->db->where('id_agent', $agent_id);
+        $query = $this->db->get('petugas');
+        return $query->result_array();
     }
 
-    $this->db->order_by('ts.tanggal_setor', 'ASC');
-    $query = $this->db->get();
-    return $query->result_array();
-}
+    public function add_petugas($agent_id, $nama_petugas)
+    {
+        $data = [
+            'id_agent' => $agent_id,
+            'nama_petugas' => $nama_petugas
+        ];
+        return $this->db->insert('petugas', $data);
+    }
 
+    public function delete_petugas($id_petugas, $agent_id)
+    {
+        // Pastikan hanya bisa menghapus petugas milik agent yang login
+        $this->db->where('id_petugas', $id_petugas);
+        $this->db->where('id_agent', $agent_id);
+        return $this->db->delete('petugas');
+    }
 
+    public function get_all_categories()
+    {
+        return $this->db->get('kategori_sampah')->result_array();
+    }
+
+    public function get_jenis_by_kategori($id_kategori)
+    {
+        $this->db->select('js.id_jenis, js.nama_jenis, hh.harga');
+        $this->db->from('jenis_sampah js');
+        $this->db->join('(SELECT id_jenis, MAX(id_histori) as latest FROM harga_histori GROUP BY id_jenis) as sub', 'sub.id_jenis = js.id_jenis', 'inner');
+        $this->db->join('harga_histori hh', 'hh.id_histori = sub.latest', 'inner');
+        $this->db->where('js.id_kategori', $id_kategori);
+        return $this->db->get()->result_array();
+    }
+
+    public function get_laporan_transaksi($agent_id, $bulan = null, $tahun = null)
+    {
+        $this->db->select("
+            ts.tanggal_setor,
+            ru.no_rekening,
+            u.nama AS nama_nasabah,
+            ts.id_setoran,
+            ts.total_poin AS pendapatan,
+            js.kode,
+            js.nama_jenis,
+            js.id_jenis,
+            ks.nama_kategori,
+            ts.total_berat,
+            ds.berat,
+            th.jumlah AS tarik_tunai,
+            u.saldo AS saldo_akhir,
+            tps.nama_tipe AS tipe_sampah,
+            p.nama_petugas,
+            hh.harga,
+            ds.berat AS jumlah_kg,
+            0 AS jumlah_botol
+        ");
+        $this->db->from('transaksi_setoran ts');
+        $this->db->join('detail_setoran ds', 'ds.id_setoran = ts.id_setoran', 'left');
+        $this->db->join('jenis_sampah js', 'js.id_jenis = ds.id_jenis', 'left');
+        $this->db->join('kategori_sampah ks', 'ks.id_kategori = js.id_kategori', 'left');
+        $this->db->join('harga_histori hh', 'hh.id_jenis = js.id_jenis', 'left');
+        $this->db->join('users u', 'u.id_user = ts.id_user', 'left');
+        $this->db->join('rekening_user ru', 'ru.id_user = u.id_user', 'left');
+        $this->db->join('tipe_sampah tps', 'tps.id_tipe_sampah = js.id_tipe_sampah', 'left');
+        $this->db->join('transaksi_penarikan th', 'th.id_user = u.id_user', 'left');
+        $this->db->join('petugas p', 'p.id_agent = ts.id_agent', 'left');
+        $this->db->where('ts.id_agent', $agent_id);
+
+        if ($bulan && $tahun) {
+            $this->db->where('MONTH(ts.tanggal_setor)', $bulan);
+            $this->db->where('YEAR(ts.tanggal_setor)', $tahun);
+        }
+
+        $this->db->order_by('ts.tanggal_setor', 'ASC');
+        $query = $this->db->get();
+        return $query->result_array();
+    }
+
+    public function get_pending_iuran_by_user($user_id)
+    {
+        $this->db->select('i.id_iuran, i.biaya, i.deadline');
+        $this->db->from('iuran i');
+        $this->db->join('nasabah n', 'n.id_nasabah = i.id_nasabah');
+        $this->db->where('n.id_users', $user_id);
+        $this->db->where('i.status_iuran', 'belum bayar');
+        // Hanya ambil satu, asumsikan hanya ada satu iuran pending
+        $this->db->limit(1); 
+        return $this->db->get()->row_array();
+    }
+
+    public function update_iuran_to_paid($id_iuran)
+    {
+        $this->db->where('id_iuran', $id_iuran);
+        return $this->db->update('iuran', ['status_iuran' => 'sudah bayar']);
+    }
+
+    public function get_all_users_by_agent($agent_id)
+    {
+        $this->db->select('u.id_user, u.nama, u.phone, u.address, n.tipe_nasabah, n.jumlah_nasabah');
+        $this->db->from('users u');
+        // Filter user yang memilih agent ini sebagai agent pilihan mereka
+        $this->db->where('u.id_agent_pilihan', $agent_id);
+        // Pastikan user adalah role 'user'
+        $this->db->where('u.role', 'user'); 
+        // Join dengan tabel nasabah (optional, tapi baik untuk data di view)
+        $this->db->join('nasabah n', 'n.id_users = u.id_user', 'left'); 
+        $this->db->order_by('u.nama', 'ASC');
+        return $this->db->get()->result_array();
+    }
 }

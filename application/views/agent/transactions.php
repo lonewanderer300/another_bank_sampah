@@ -62,28 +62,46 @@
 
             <!-- Kategori / Jenis / Berat -->
             <div class="row mb-3">
-                <div class="col-md-4">
-                    <label for="kategori_sampah" class="form-label">Kategori Sampah</label>
-                    <select id="kategori_sampah" class="form-select">
-                        <option value="">-- Pilih Kategori --</option>
-                        <?php foreach ($categories as $kategori): ?>
-                            <option value="<?= $kategori['id_kategori']; ?>"><?= $kategori['nama_kategori']; ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+                <!-- ====== DETAIL SAMPAH DINAMIS ====== -->
+<div id="wasteItemsContainer">
+    <div class="row mb-3 waste-item">
+        <div class="col-md-4">
+            <label class="form-label">Kategori Sampah</label>
+            <select class="form-select kategori_sampah" name="waste_items[0][id_kategori]" required>
+                <option value="">-- Pilih Kategori --</option>
+                <?php foreach ($categories as $kategori): ?>
+                    <option value="<?= $kategori['id_kategori']; ?>"><?= $kategori['nama_kategori']; ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
 
-                <div class="col-md-4">
-                    <label for="jenis_sampah" class="form-label">Jenis Sampah</label>
-                    <select name="waste_items[id_jenis]" id="jenis_sampah" class="form-select">
-                        <option value="">-- Pilih Jenis --</option>
-                    </select>
-                </div>
+        <div class="col-md-4">
+            <label class="form-label">Jenis Sampah</label>
+            <select class="form-select jenis_sampah" name="waste_items[0][id_jenis]" required>
+                <option value="">-- Pilih Jenis --</option>
+            </select>
+        </div>
 
-                <div class="col-md-4">
-                    <label for="berat" class="form-label">Berat (kg)</label>
-                    <input type="number" step="0.01" min="0" name="waste_items[berat]" id="berat"
-                           class="form-control" placeholder="Berat (kg)">
-                </div>
+        <div class="col-md-3">
+            <label class="form-label">Berat (kg)</label>
+            <input type="number" step="0.01" min="0" name="waste_items[0][berat]" class="form-control" placeholder="Berat (kg)" required>
+        </div>
+
+        <div class="col-md-1 d-flex align-items-end">
+            <button type="button" class="btn btn-danger btn-remove-item w-100">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Tombol tambah baris -->
+<div class="text-end mb-3">
+    <button type="button" id="addWasteItem" class="btn btn-outline-success btn-sm">
+        <i class="bi bi-plus-circle me-1"></i> Tambah Jenis Sampah
+    </button>
+</div>
+
             </div>
 
             <!-- Petugas -->
@@ -171,3 +189,57 @@ document.getElementById('kategori_sampah').addEventListener('change', function()
     }
 });
 </script>
+<script>
+let wasteIndex = 1;
+
+document.getElementById('addWasteItem').addEventListener('click', function () {
+    const container = document.getElementById('wasteItemsContainer');
+    const newItem = document.querySelector('.waste-item').cloneNode(true);
+
+    // Update name index
+    newItem.querySelectorAll('select, input').forEach(el => {
+        el.name = el.name.replace(/\[\d+\]/, `[${wasteIndex}]`);
+        el.value = '';
+    });
+
+    container.appendChild(newItem);
+    wasteIndex++;
+});
+
+// Hapus baris item
+document.addEventListener('click', function (e) {
+    if (e.target.closest('.btn-remove-item')) {
+        const items = document.querySelectorAll('.waste-item');
+        if (items.length > 1) {
+            e.target.closest('.waste-item').remove();
+        } else {
+            alert('Minimal satu item sampah harus ada.');
+        }
+    }
+});
+
+// Fetch jenis sampah berdasarkan kategori (untuk semua baris)
+document.addEventListener('change', function (e) {
+    if (e.target.classList.contains('kategori_sampah')) {
+        const idKategori = e.target.value;
+        const jenisSelect = e.target.closest('.waste-item').querySelector('.jenis_sampah');
+        jenisSelect.innerHTML = '<option value="">-- Pilih Jenis --</option>';
+
+        if (idKategori) {
+            fetch(`<?= base_url('agent/get_jenis_by_kategori?id_kategori='); ?>${idKategori}`)
+                .then(res => res.json())
+                .then(data => {
+                    data.forEach(item => {
+                        const harga = item.harga ? ` (Rp ${Number(item.harga).toLocaleString()}/kg)` : ' (Harga belum diatur)';
+                        const option = document.createElement('option');
+                        option.value = item.id_jenis;
+                        option.textContent = `${item.nama_jenis}${harga}`;
+                        jenisSelect.appendChild(option);
+                    });
+                })
+                .catch(err => console.error(err));
+        }
+    }
+});
+</script>
+

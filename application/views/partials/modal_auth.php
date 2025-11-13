@@ -54,8 +54,27 @@
                     <input class="w-full px-4 py-2 mt-4 border rounded-md" type="password" placeholder="Password" name="password" required>
                     <input class="w-full px-4 py-2 mt-4 border rounded-md" type="text" placeholder="Phone Number" name="phone" required>
                     
-                    <div x-show="registerRole === 'agent'" class="mt-4 space-y-4">
-                        <input class="w-full px-4 py-2 border rounded-md" type="text" placeholder="Wilayah (e.g., Kecamatan, Kelurahan)" name="wilayah">
+                    <div x-show="registerRole === 'agent'">
+                            <input list="wilayah-list" 
+                            type="text" 
+                            name="wilayah" 
+                            id="reg-wilayah" 
+                            :required="registerRole === 'agent'"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm" 
+                            placeholder="Ketik atau pilih wilayah...">
+                                                    
+                        <datalist id="wilayah-list">
+                            <?php 
+                            // Variabel $list_wilayah ini didapat dari Home.php
+                            if (!empty($list_wilayah)): 
+                                foreach($list_wilayah as $wilayah): 
+                            ?>
+                                <option value="<?= htmlspecialchars($wilayah['nama_wilayah']); ?>">
+                            <?php 
+                                endforeach; 
+                            endif; 
+                            ?>
+                        </datalist>
                     </div>
 
                     <div class="flex items-center justify-center mt-6">

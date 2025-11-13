@@ -42,91 +42,133 @@ class Agent extends CI_Controller {
 
     public function my_user()
     {
-        $agent_id = $this->session->userdata('agent_id'); // Pastikan ini ada di session
-        if (!$agent_id) {
-             // Handle jika agent_id tidak ada di session, mungkin redirect ke login
-             show_error('Agent ID tidak ditemukan di session.');
-             return;
-        }
-        $data['customers'] = $this->Agent_model->get_agent_customers_list($agent_id);
+        $agent_id = $this->session->userdata('agent_id');
+        $users = $this->Agent_model->get_all_users_by_agent($agent_id);
 
+        // Fetch iuran status for each user
+        foreach ($users as &$user) {
+            // Ambil iuran yang statusnya 'belum bayar'
+            $iuran = $this->Agent_model->get_pending_iuran_by_user($user['id_user']);
+            if ($iuran) {
+                $user['iuran_status'] = 'belum bayar';
+                $user['iuran_id'] = $iuran['id_iuran'];
+                $user['iuran_biaya'] = $iuran['biaya'];
+            } else {
+                $user['iuran_status'] = 'sudah bayar';
+                $user['iuran_id'] = null;
+                $user['iuran_biaya'] = 0;
+            }
+        }
+        unset($user); // Break the reference
+
+        $data['users'] = $users;
         $data['view_name'] = 'agent/my_user';
         $this->load->view('agent/layout', $data);
     }
 
+    public function pay_iuran($iuran_id)
+    {
+        $agent_id = $this->session->userdata('agent_id');
+        
+        // Sanitize input
+        $iuran_id = (int)$iuran_id;
+
+        if ($iuran_id <= 0) {
+            $this->session->set_flashdata('error', 'ID Iuran tidak valid.');
+            redirect('agent/my_user');
+            return;
+        }
+
+        // Cek dulu apakah iuran ini memang milik nasabah yang berada di bawah agent ini (optional, but good for security)
+        // Jika tidak ada fungsi di model, ini adalah contoh sederhana:
+        // $iuran = $this->db->select('n.id_users')->from('iuran i')->join('nasabah n', 'n.id_nasabah = i.id_nasabah')->join('users u', 'u.id_user = n.id_users')->where('i.id_iuran', $iuran_id)->where('u.id_agent_pilihan', $agent_id)->get()->row();
+        
+        // Kita langsung update, asumsikan agent hanya akan mengklik nasabahnya sendiri
+        if ($this->Agent_model->update_iuran_to_paid($iuran_id)) {
+            $this->session->set_flashdata('success', 'Iuran berhasil ditandai sebagai **Sudah Dibayar**.');
+        } else {
+            $this->session->set_flashdata('error', 'Gagal memperbarui status iuran.');
+        }
+
+        redirect('agent/my_user');
+    }
+
     public function transactions()
-{
-    $agent_id = $this->session->userdata('agent_id');
+    {
+        $agent_id = $this->session->userdata('agent_id');
 
-    $data['total_transactions'] = $this->Agent_model->count_agent_transactions($agent_id);
-    $data['total_income'] = $this->Agent_model->get_total_income_by_agent($agent_id);
-    $data['total_waste'] = $this->Agent_model->get_total_waste_by_agent($agent_id);
-    $data['transactions'] = $this->Agent_model->get_agent_transactions($agent_id);
-    $data['customers'] = $this->Agent_model->get_registered_customers_for_dropdown($agent_id);
-    $data['categories'] = $this->Agent_model->get_all_categories();
-    $data['petugas'] = $this->Agent_model->get_petugas_by_agent($agent_id);
+        $data['total_transactions'] = $this->Agent_model->count_agent_transactions($agent_id);
+        $data['total_income'] = $this->Agent_model->get_total_income_by_agent($agent_id);
+        $data['total_waste'] = $this->Agent_model->get_total_waste_by_agent($agent_id);
+        $data['transactions'] = $this->Agent_model->get_agent_transactions($agent_id);
+        $data['customers'] = $this->Agent_model->get_registered_customers_for_dropdown($agent_id);
+        $data['categories'] = $this->Agent_model->get_all_categories();
+        $data['petugas'] = $this->Agent_model->get_petugas_by_agent($agent_id);
 
-    $data['view_name'] = 'agent/transactions';
-    $this->load->view('agent/layout', $data);
-}
+        $data['view_name'] = 'agent/transactions';
+        $this->load->view('agent/layout', $data);
+    }
 
 
     /**
      * Fungsi untuk memproses penambahan transaksi baru
      */
     public function add_transaction()
-    {
-        if ($this->input->server('REQUEST_METHOD') !== 'POST') {
-             redirect('agent/transactions');
-        }
+{
+    if ($this->input->server('REQUEST_METHOD') !== 'POST') {
+        redirect('agent/transactions');
+    }
 
-        $agent_id = $this->session->userdata('agent_id');
+    $agent_id = $this->session->userdata('agent_id');
 
-        // Aturan validasi
-        $this->form_validation->set_rules('customer_id', 'Nasabah', 'required|numeric');
-        $this->form_validation->set_rules('transaction_date', 'Tanggal Transaksi', 'required');
-        // Validasi untuk array waste_items (minimal satu item harus diisi dan > 0)
-        // $this->form_validation->set_rules('waste_items', 'Detail Sampah', 'callback_validate_waste_items');
+    // Validasi dasar
+    $this->form_validation->set_rules('customer_id', 'Nasabah', 'required|numeric');
+    $this->form_validation->set_rules('transaction_date', 'Tanggal Transaksi', 'required');
 
-        if ($this->form_validation->run() == FALSE) {
-            $this->session->set_flashdata('error_form', validation_errors());
-            $this->transactions(); // Panggil ulang transactions untuk memuat data view
-        } else {
-            $customer_id = $this->input->post('customer_id');
-            // Format tanggal sesuai kebutuhan database (misal: YYYY-MM-DD HH:MM:SS)
-            $transaction_date = date('Y-m-d H:i:s', strtotime($this->input->post('transaction_date')));
-            $waste_items_input = $this->input->post('waste_items'); // Ini adalah array [id_jenis => berat]
-			if (isset($waste_items_input['id_jenis']) && isset($waste_items_input['berat'])) {
-    $waste_items_input = [
-        (int)$waste_items_input['id_jenis'] => (float)$waste_items_input['berat']
-    ];
-}
-            // Filter item yang beratnya valid (lebih dari 0)
-            $valid_waste_items = [];
-            if (is_array($waste_items_input)) {
-                foreach ($waste_items_input as $id_jenis => $berat) {
-                    if (is_numeric($berat) && $berat > 0) {
-                        $valid_waste_items[$id_jenis] = (float)$berat;
-                    }
-                }
+    if ($this->form_validation->run() == FALSE) {
+        $this->session->set_flashdata('error_form', validation_errors());
+        redirect('agent/transactions');
+        return;
+    }
+
+    $customer_id = $this->input->post('customer_id');
+    $transaction_date = date('Y-m-d H:i:s', strtotime($this->input->post('transaction_date')));
+    $waste_items_input = $this->input->post('waste_items'); // Format: array of {id_jenis, berat}
+
+    $valid_waste_items = [];
+
+    // Loop tiap item input dan validasi
+    if (is_array($waste_items_input)) {
+        foreach ($waste_items_input as $item) {
+            if (
+                isset($item['id_jenis'], $item['berat']) &&
+                is_numeric($item['berat']) &&
+                $item['berat'] > 0
+            ) {
+                $valid_waste_items[(int)$item['id_jenis']] = (float)$item['berat'];
             }
-
-            // Jika tidak ada item yang valid setelah difilter
-            if (empty($valid_waste_items)) {
-                  $this->session->set_flashdata('error_form', 'Masukkan berat minimal untuk satu jenis sampah.');
-             }
-
-            // Panggil model untuk menyimpan
-            $result = $this->Agent_model->save_transaction($agent_id, $customer_id, $transaction_date, $valid_waste_items);
-
-            if ($result['success']) {
-                $this->session->set_flashdata('success', $result['message']);
-            } else {
-                $this->session->set_flashdata('error_form', $result['message']);
-            }
-            redirect('agent/transactions');
         }
     }
+
+    // Jika tidak ada sampah valid
+    if (empty($valid_waste_items)) {
+        $this->session->set_flashdata('error_form', 'Masukkan minimal satu jenis sampah dengan berat > 0.');
+        redirect('agent/transactions');
+        return;
+    }
+
+    // Simpan transaksi ke database lewat model
+    $result = $this->Agent_model->save_transaction($agent_id, $customer_id, $transaction_date, $valid_waste_items);
+
+    if ($result['success']) {
+        $this->session->set_flashdata('success', $result['message']);
+    } else {
+        $this->session->set_flashdata('error_form', $result['message']);
+    }
+
+    redirect('agent/transactions');
+}
+
 
     /**
      * Callback function untuk validasi input waste_items

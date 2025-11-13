@@ -189,16 +189,63 @@ class Home_model extends CI_Model {
         return $this->db->get()->result_array();
     }
 	public function insert_nasabah($data)
-{
-    $this->db->insert('nasabah', $data);
-    return $this->db->insert_id();
-}
+    {
+        $this->db->insert('nasabah', $data);
+        return $this->db->insert_id();
+    }
 
-public function insert_iuran($data)
-{
-    $this->db->insert('iuran', $data);
-    return $this->db->insert_id();
-}
+    public function insert_iuran($data)
+    {
+        $this->db->insert('iuran', $data);
+        return $this->db->insert_id();
+    }
+
+    public function get_distinct_wilayah()
+    {
+        $query = $this->db->query("SHOW COLUMNS FROM agent LIKE 'wilayah'");
+        
+        if ($query->num_rows() == 0) {
+            return []; // Kolom 'wilayah' tidak ditemukan
+        }
+
+        // 2. Ambil baris hasil
+        $row = $query->row_array(); 
+        // Hasil dari $row['Type'] akan terlihat seperti ini:
+        // "enum('Jakarta','Surabaya','Bandung','Medan')"
+
+        // 3. Ekstrak nilai dari string 'Type' menggunakan regex
+        // Ini akan mengambil semua teks di antara tanda kurung (...)
+        preg_match("/^enum\((.*)\)$/", $row['Type'], $matches);
+
+        // 4. Cek apakah kolomnya benar-benar ENUM
+        if (!isset($matches[1])) {
+            // JIKA BUKAN ENUM (misal: VARCHAR), kita kembali ke logika lama (DISTINCT)
+            // Ini adalah fallback agar tidak error
+            $this->db->select('DISTINCT(wilayah) as nama_wilayah');
+            $this->db->from('agent');
+            $this->db->where('wilayah IS NOT NULL');
+            $this->db->where('wilayah !=', '');
+            $this->db->order_by('nama_wilayah', 'ASC');
+            return $this->db->get()->result_array();
+        }
+
+        // 5. Jika INI ADALAH ENUM, kita proses string-nya
+        // $matches[1] akan berisi: "'Jakarta','Surabaya','Bandung','Medan'"
+        $enum_values = explode(',', $matches[1]);
+
+        // 6. Format ulang array agar sesuai dengan ekspektasi view
+        $wilayah_list = [];
+        foreach ($enum_values as $value) {
+            // Hapus tanda kutip ' di awal dan akhir setiap nilai
+            $clean_value = trim($value, "'"); 
+            
+            $wilayah_list[] = [
+                'nama_wilayah' => $clean_value
+            ];
+        }
+
+        return $wilayah_list;
+    }
 
 }
 

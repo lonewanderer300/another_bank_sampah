@@ -32,11 +32,26 @@ class User extends CI_Controller {
         $data['waste_labels'] = json_encode(array_column($waste_summary, 'waste_type'));
         $data['waste_data'] = json_encode(array_column($waste_summary, 'total_weight'));
 
-        $data['iuran'] = array(
-            'status' => 'paid',
-            'amount' => 20000,
-            'due_date' => '30 Oktober 2025'
-        );
+        // PERBAIKAN: Mengambil data iuran dari database
+        $iuran_data = $this->User_model->get_user_iuran($user_id);
+        
+        if ($iuran_data) {
+            $data['iuran'] = array(
+                'status' => $iuran_data['status'],
+                'amount' => $iuran_data['biaya'],
+                'due_date' => $iuran_data['due_date']
+            );
+        } else {
+             // Nilai default jika user belum terdaftar sebagai nasabah/iuran tidak ditemukan
+            $data['iuran'] = array(
+                'status' => 'na', // 'na' stands for Not Available (Belum Terdaftar)
+                'amount' => 0,
+                'due_date' => 'N/A'
+            );
+             // Pesan opsional untuk memberi tahu pengguna
+            $this->session->set_flashdata('info', 'Anda belum terdaftar sebagai Nasabah. Silakan daftar di halaman Profil untuk mulai mengumpulkan iuran.');
+        }
+
 
         $data['view_name'] = 'user/dashboard';
         $this->load->view('user/layout', $data);
@@ -270,6 +285,50 @@ class User extends CI_Controller {
         $data['view_name'] = 'user/rekening';
         $this->load->view('user/layout', $data);
     }
+	public function export_transactions_excel()
+{
+    $user_id = $this->session->userdata('user_id');
+
+    // Pastikan user login
+    if (!$user_id) {
+        $this->session->set_flashdata('error', 'Silakan login terlebih dahulu.');
+        redirect(base_url());
+        return;
+    }
+
+    // Ambil data transaksi user
+    $transactions = $this->User_model->get_user_transactions($user_id);
+
+    // Header untuk file Excel (HTML Table)
+    header("Content-Type: application/vnd.ms-excel");
+    header("Content-Disposition: attachment; filename=Riwayat_Transaksi_User_" . date('Y_m_d_H_i') . ".xls");
+
+    echo "<table border='1'>
+        <tr style='background-color:#cce5ff; font-weight:bold;'>
+            <th>No</th>
+            <th>Tanggal</th>
+            <th>Agen Penyetoran</th>
+            <th>Wilayah</th>
+            <th>Total Berat (Kg)</th>
+            <th>Pendapatan (Rp)</th>
+        </tr>";
+
+    $no = 1;
+    foreach ($transactions as $row) {
+        echo "<tr>
+            <td>{$no}</td>
+            <td>" . date('d-m-Y', strtotime($row['tanggal_setor'])) . "</td>
+            <td>" . htmlspecialchars($row['agent_name'] ?? 'Bank Sampah Pusat') . "</td>
+            <td>" . htmlspecialchars($row['agent_area'] ?? '-') . "</td>
+            <td>" . number_format($row['total_berat'], 2, ',', '.') . "</td>
+            <td>" . number_format($row['transaction_value'], 0, ',', '.') . "</td>
+        </tr>";
+        $no++;
+    }
+
+    echo "</table>";
+}
+
 
     public function logout()
     {

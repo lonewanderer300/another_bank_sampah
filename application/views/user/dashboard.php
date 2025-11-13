@@ -46,6 +46,15 @@
                         <h6 class="card-subtitle mb-1 text-muted">Status Iuran Bulan Ini</h6>
                         <h4 class="card-title fw-bold mb-0 text-success">Sudah Dibayar</h4>
                     </div>
+                <?php elseif ($iuran['status'] == 'na'): ?>
+                    <div class="bg-secondary text-white rounded-3 d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                        <i class="bi bi-person-slash fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="card-subtitle mb-1 text-muted">Status Iuran</h6>
+                        <h4 class="card-title fw-bold mb-0 text-secondary">Belum Terdaftar</h4>
+                        <small class="text-muted">Daftar sebagai Nasabah di Profil.</small>
+                    </div>
                 <?php else: ?>
                     <div class="bg-warning text-white rounded-3 d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
                         <i class="bi bi-exclamation-triangle-fill fs-4"></i>
