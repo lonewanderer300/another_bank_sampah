@@ -3,6 +3,11 @@
         <h5 class="card-title fw-bold mb-3">Daftar Nasabah Saya</h5>
         <p class="text-muted">Nasabah yang telah memilih Anda sebagai bank sampah pilihan.</p>
         <div class="table-responsive">
+			<a href="<?= base_url('agent/export_my_users'); ?>" 
+   class="btn btn-success mb-3">
+    <i class="bi bi-file-earmark-excel-fill"></i> Download Excel
+</a>
+
             <table class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>

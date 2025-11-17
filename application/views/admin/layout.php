@@ -73,17 +73,21 @@
                 <i class="bi bi-people-fill"></i> Manajemen Nasabah
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'admin/manage_transactions' ? 'active' : '' ?>" href="<?= base_url('admin/manage_transactions') ?>">
+                <i class="bi bi-receipt"></i> Manajemen Transaksi
+            </a>
+        </li>
 		<li class="nav-item">
-    <a class="nav-link <?= uri_string() == 'admin/manage_iuran' ? 'active' : '' ?>" href="<?= base_url('admin/manage_iuran') ?>">
-        <i class="bi bi-cash-stack"></i> Manajemen Iuran
-    </a>
-</li>
-		<li class="nav-item">
-    <a class="nav-link <?= uri_string() == 'admin/laporan_transaksi' ? 'active' : '' ?>" href="<?= base_url('admin/laporan_transaksi') ?>">
-        <i class="bi bi-file-earmark-text"></i> Laporan Transaksi
-    </a>
-</li>
-
+        <a class="nav-link <?= uri_string() == 'admin/manage_iuran' ? 'active' : '' ?>" href="<?= base_url('admin/manage_iuran') ?>">
+            <i class="bi bi-cash-stack"></i> Manajemen Iuran
+        </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= uri_string() == 'admin/laporan_transaksi' ? 'active' : '' ?>" href="<?= base_url('admin/laporan_transaksi') ?>">
+                <i class="bi bi-file-earmark-text"></i> Laporan Transaksi
+            </a>
+        </li>
 
     </ul>
     <a href="<?= base_url('admin/logout') ?>" class="btn btn-outline-danger logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>

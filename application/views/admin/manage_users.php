@@ -1,4 +1,11 @@
 <div class="bg-white shadow-md rounded-lg overflow-hidden">
+	<div class="mb-3">
+    <a href="<?= base_url('admin/export_users'); ?>" 
+       class="btn btn-success">
+        <i class="bi bi-file-earmark-excel-fill"></i> Download Excel
+    </a>
+</div>
+
     <table class="min-w-full leading-normal">
         <thead>
             <tr>
@@ -12,11 +19,11 @@
         <tbody>
             <?php if (!empty($users)): foreach($users as $user): ?>
                 <tr>
-                    <td class="px-4 py-3 border-b border-gray-200 bg-white text-sm"><?= htmlspecialchars($user['nama']); ?></td>
-                    <td class="px-5 py-3 border-b border-gray-200 bg-white text-sm"><?= htmlspecialchars($user['email']); ?></td>
-                    <td class="px-5 py-3 border-b border-gray-200 bg-white text-sm"><?= htmlspecialchars($user['phone']); ?></td>
+                    <td class="px-4 py-2 border-b border-gray-200 bg-white text-sm"><?= htmlspecialchars($user['nama']); ?></td>
+                    <td class="px-5 py-2 border-b border-gray-200 bg-white text-sm"><?= htmlspecialchars($user['email']); ?></td>
+                    <td class="px-5 py-2 border-b border-gray-200 bg-white text-sm"><?= htmlspecialchars($user['phone']); ?></td>
                     
-                    <td class="px-5 py-3 border-b border-gray-200 bg-white text-sm">
+                    <td class="px-5 py-2 border-b border-gray-200 bg-white text-sm">
                         <?php 
                         // Cek apakah 'nama_agent' ada dan tidak kosong (hasil dari JOIN)
                         if (!empty($user['nama_agent'])) {
@@ -46,11 +53,22 @@
                             echo '</span>';
                         }
                         ?>
-                    </td> 
+                    </td>
 
-                    <td class="px-5 py-2 border-b border-gray-200 bg-white text-sm">
-                        <a href="<?= base_url('admin/edit_user/' . $user['id_user']); ?>" class="text-blue-600 hover:text-blue-900">Edit</a>
-                        <a href="<?= base_url('admin/delete_user/' . $user['id_user']); ?>" class="text-red-600 hover:text-red-900 ml-3" onclick="return confirm('Yakin ingin menghapus?')">Hapus</a>
+                    <td class="px-4 py-2 border-b border-gray-200 bg-white text-sm">
+                        <!-- Tombol Edit: Biru (btn-primary) -->
+                        <button type="button" 
+                                onclick="window.location.href='<?= base_url('admin/edit_user/' . $user['id_user']); ?>'" 
+                                class="btn btn-primary btn-sm me-2"> <!-- me-2 adalah margin-end Bootstrap, setara dengan mr-3 Tailwind -->
+                            Edit
+                        </button>
+                        
+                        <!-- Tombol Delete: Merah (btn-danger) -->
+                        <button type="button" 
+                                onclick="if(confirm('Peringatan: Menghapus data user juga akan menghapus data agen/nasabah terkait. Yakin ingin menghapus user ini?')) { window.location.href='<?= base_url('admin/delete_user/' . $user['id_user']); ?>'; }"
+                                class="btn btn-danger btn-sm">
+                            Delete
+                        </button>
                     </td>
                 </tr>
             <?php endforeach; else: ?>

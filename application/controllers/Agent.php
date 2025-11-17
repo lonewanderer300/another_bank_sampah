@@ -15,11 +15,11 @@ class Agent extends CI_Controller {
             $this->session->set_flashdata('error', 'Anda harus login sebagai Agen.');
             redirect(base_url());
         }
-         // Pastikan agent_id ada di session setelah perbaikan login
-         if (!$this->session->userdata('agent_id')) {
-             show_error('Sesi Agent tidak valid. Silakan login kembali.');
-             // Atau redirect('home/logout');
-         }
+          // Pastikan agent_id ada di session setelah perbaikan login
+          if (!$this->session->userdata('agent_id')) {
+              show_error('Sesi Agent tidak valid. Silakan login kembali.');
+              // Atau redirect('home/logout');
+          }
     }
 
     public function index()
@@ -78,10 +78,6 @@ class Agent extends CI_Controller {
             redirect('agent/my_user');
             return;
         }
-
-        // Cek dulu apakah iuran ini memang milik nasabah yang berada di bawah agent ini (optional, but good for security)
-        // Jika tidak ada fungsi di model, ini adalah contoh sederhana:
-        // $iuran = $this->db->select('n.id_users')->from('iuran i')->join('nasabah n', 'n.id_nasabah = i.id_nasabah')->join('users u', 'u.id_user = n.id_users')->where('i.id_iuran', $iuran_id)->where('u.id_agent_pilihan', $agent_id)->get()->row();
         
         // Kita langsung update, asumsikan agent hanya akan mengklik nasabahnya sendiri
         if ($this->Agent_model->update_iuran_to_paid($iuran_id)) {
@@ -114,61 +110,142 @@ class Agent extends CI_Controller {
      * Fungsi untuk memproses penambahan transaksi baru
      */
     public function add_transaction()
-{
-    if ($this->input->server('REQUEST_METHOD') !== 'POST') {
-        redirect('agent/transactions');
-    }
+    {
+        if ($this->input->server('REQUEST_METHOD') !== 'POST') {
+            redirect('agent/transactions');
+        }
 
-    $agent_id = $this->session->userdata('agent_id');
+        $agent_id = $this->session->userdata('agent_id');
 
-    // Validasi dasar
-    $this->form_validation->set_rules('customer_id', 'Nasabah', 'required|numeric');
-    $this->form_validation->set_rules('transaction_date', 'Tanggal Transaksi', 'required');
+        // Validasi dasar
+        $this->form_validation->set_rules('customer_id', 'Nasabah', 'required|numeric');
+        $this->form_validation->set_rules('transaction_date', 'Tanggal Transaksi', 'required');
 
-    if ($this->form_validation->run() == FALSE) {
-        $this->session->set_flashdata('error_form', validation_errors());
-        redirect('agent/transactions');
-        return;
-    }
+        if ($this->form_validation->run() == FALSE) {
+            $this->session->set_flashdata('error_form', validation_errors());
+            redirect('agent/transactions');
+            return;
+        }
 
-    $customer_id = $this->input->post('customer_id');
-    $transaction_date = date('Y-m-d H:i:s', strtotime($this->input->post('transaction_date')));
-    $waste_items_input = $this->input->post('waste_items'); // Format: array of {id_jenis, berat}
+        $customer_id = $this->input->post('customer_id');
+        $transaction_date = date('Y-m-d H:i:s', strtotime($this->input->post('transaction_date')));
+        $waste_items_input = $this->input->post('waste_items'); // Format: array of {id_jenis, berat}
 
-    $valid_waste_items = [];
+        $valid_waste_items = [];
 
-    // Loop tiap item input dan validasi
-    if (is_array($waste_items_input)) {
-        foreach ($waste_items_input as $item) {
-            if (
-                isset($item['id_jenis'], $item['berat']) &&
-                is_numeric($item['berat']) &&
-                $item['berat'] > 0
-            ) {
-                $valid_waste_items[(int)$item['id_jenis']] = (float)$item['berat'];
+        // Loop tiap item input dan validasi
+        if (is_array($waste_items_input)) {
+            foreach ($waste_items_input as $item) {
+                if (
+                    isset($item['id_jenis'], $item['berat']) &&
+                    is_numeric($item['berat']) &&
+                    $item['berat'] > 0
+                ) {
+                    $valid_waste_items[(int)$item['id_jenis']] = (float)$item['berat'];
+                }
             }
         }
-    }
 
-    // Jika tidak ada sampah valid
-    if (empty($valid_waste_items)) {
-        $this->session->set_flashdata('error_form', 'Masukkan minimal satu jenis sampah dengan berat > 0.');
+        // Jika tidak ada sampah valid
+        if (empty($valid_waste_items)) {
+            $this->session->set_flashdata('error_form', 'Masukkan minimal satu jenis sampah dengan berat > 0.');
+            redirect('agent/transactions');
+            return;
+        }
+
+        // Simpan transaksi ke database lewat model
+        $result = $this->Agent_model->save_transaction($agent_id, $customer_id, $transaction_date, $valid_waste_items);
+
+        if ($result['success']) {
+            $this->session->set_flashdata('success', $result['message']);
+        } else {
+            $this->session->set_flashdata('error_form', $result['message']);
+        }
+
         redirect('agent/transactions');
-        return;
     }
 
-    // Simpan transaksi ke database lewat model
-    $result = $this->Agent_model->save_transaction($agent_id, $customer_id, $transaction_date, $valid_waste_items);
+    public function edit_transaction($id_setoran)
+    {
+        $agent_id = $this->session->userdata('agent_id');
+        $id_setoran = (int) $id_setoran;
 
-    if ($result['success']) {
-        $this->session->set_flashdata('success', $result['message']);
-    } else {
-        $this->session->set_flashdata('error_form', $result['message']);
+        // 1. Ambil data transaksi master lama
+        $transaction = $this->Agent_model->get_transaction_data($id_setoran);
+
+        // Validasi: Pastikan transaksi ada dan milik agent ini
+        if (!$transaction || $transaction['id_agent'] != $agent_id) {
+            $this->session->set_flashdata('error', 'Transaksi tidak ditemukan atau Anda tidak berhak mengubahnya.');
+            redirect('agent/transactions');
+            return;
+        }
+
+        // --- Proses POST Request (UPDATE) ---
+        if ($this->input->server('REQUEST_METHOD') === 'POST') {
+            
+            // Validasi dasar
+            $this->form_validation->set_rules('customer_id', 'Nasabah', 'required|numeric');
+            $this->form_validation->set_rules('transaction_date', 'Tanggal Transaksi', 'required');
+
+            if ($this->form_validation->run() == FALSE) {
+                $this->session->set_flashdata('error_form', validation_errors());
+                // Lanjut ke bagian bawah (menampilkan form edit dengan error)
+            } else {
+                $customer_id = $this->input->post('customer_id');
+                $transaction_date = date('Y-m-d H:i:s', strtotime($this->input->post('transaction_date')));
+                $waste_items_input = $this->input->post('waste_items');
+                
+                $valid_waste_items = [];
+                // Parsing waste items input
+                if (is_array($waste_items_input)) {
+                    foreach ($waste_items_input as $item) {
+                        if (
+                            isset($item['id_jenis'], $item['berat']) &&
+                            is_numeric($item['berat']) &&
+                            $item['berat'] > 0
+                        ) {
+                            $valid_waste_items[(int)$item['id_jenis']] = (float)$item['berat'];
+                        }
+                    }
+                }
+
+                if (empty($valid_waste_items)) {
+                    $this->session->set_flashdata('error_form', 'Masukkan minimal satu jenis sampah dengan berat > 0.');
+                } else {
+                    $old_total_poin = $transaction['total_poin'];
+                    
+                    $result = $this->Agent_model->update_transaction_and_user_balance(
+                        $id_setoran, 
+                        $old_total_poin, 
+                        $customer_id, 
+                        $transaction_date, 
+                        $valid_waste_items
+                    );
+
+                    if ($result['success']) {
+                        $this->session->set_flashdata('success', $result['message']);
+                        redirect('agent/transactions');
+                        return;
+                    } else {
+                        $this->session->set_flashdata('error_form', $result['message']);
+                    }
+                }
+            }
+        }
+        
+        // --- Memuat Data untuk Form (GET Request atau POST Request Gagal) ---
+        // Jika ada post data yang gagal, sistem akan mencoba memuat form edit dengan pesan error.
+        // Jika GET request, maka ini adalah form load awal.
+        
+        $data['transaction'] = $transaction;
+        $data['customers'] = $this->Agent_model->get_registered_customers_for_dropdown($agent_id);
+        $data['categories'] = $this->Agent_model->get_all_categories();
+        $data['petugas'] = $this->Agent_model->get_petugas_by_agent($agent_id);
+        $data['details'] = $this->Agent_model->get_current_waste_details($id_setoran);
+        
+        $data['view_name'] = 'agent/edit_transaction'; 
+        $this->load->view('agent/layout', $data);
     }
-
-    redirect('agent/transactions');
-}
-
 
     /**
      * Callback function untuk validasi input waste_items
@@ -243,9 +320,9 @@ class Agent extends CI_Controller {
             if (function_exists('get_address_from_coords')) { // Cek jika helper ada
                 $address_display = get_address_from_coords($agent_profile['latitude'], $agent_profile['longitude']);
                 if (($address_display === "Tidak dapat mengambil data lokasi" || $address_display === "Lokasi tidak ditemukan") && !empty($agent_profile['address'])) {
-                        $address_display = $agent_profile['address'];
+                    $address_display = $agent_profile['address'];
                 } elseif(!empty($agent_profile['address'])) {
-                        $address_display = $agent_profile['address']; // Prioritaskan alamat teks jika ada
+                    $address_display = $agent_profile['address']; // Prioritaskan alamat teks jika ada
                 }
             } elseif (!empty($agent_profile['address'])) {
                 $address_display = $agent_profile['address']; // Fallback jika helper tidak ada
@@ -258,19 +335,19 @@ class Agent extends CI_Controller {
 
 
         $data['agent'] = [
-            'name'         => $agent_profile['nama'],
-            'role'         => ucfirst($agent_profile['role']),
-            'email'        => $agent_profile['email'],
-            'phone'        => $agent_profile['phone'] ?? 'Belum diisi',
-            // 'address'      => $agent_profile['address'] ?? 'Belum diisi', // Ganti dengan address_display
-            'address'      => $address_display, // Tampilkan alamat hasil geocoding/teks
-            'bio'          => $agent_profile['bio'] ?? 'Ceritakan tentang bank sampah Anda.',
-            'wilayah'      => $agent_profile['wilayah'],
-            'member_since' => date('M Y', strtotime($agent_profile['created_at'])),
+            'name'          => $agent_profile['nama'],
+            'role'          => ucfirst($agent_profile['role']),
+            'email'         => $agent_profile['email'],
+            'phone'         => $agent_profile['phone'] ?? 'Belum diisi',
+            // 'address'       => $agent_profile['address'] ?? 'Belum diisi', // Ganti dengan address_display
+            'address'       => $address_display, // Tampilkan alamat hasil geocoding/teks
+            'bio'           => $agent_profile['bio'] ?? 'Ceritakan tentang bank sampah Anda.',
+            'wilayah'       => $agent_profile['wilayah'],
+            'member_since'  => date('M Y', strtotime($agent_profile['created_at'])),
             // TAMBAHKAN LATITUDE & LONGITUDE UNTUK VIEW
-            'latitude'     => $agent_profile['latitude'],
-            'longitude'    => $agent_profile['longitude'],
-            'raw_address'  => $agent_profile['address'], // Kirim alamat asli untuk form
+            'latitude'      => $agent_profile['latitude'],
+            'longitude'     => $agent_profile['longitude'],
+            'raw_address'   => $agent_profile['address'], // Kirim alamat asli untuk form
         ];
 
         // Data untuk kartu statistik
@@ -286,117 +363,162 @@ class Agent extends CI_Controller {
         $data['view_name'] = 'agent/profile';
         $this->load->view('agent/layout', $data);
     }
-	public function petugas()
-{
-    $agent_id = $this->session->userdata('agent_id');
-    $data['petugas'] = $this->Agent_model->get_petugas_by_agent($agent_id);
-    $data['view_name'] = 'agent/petugas';
-    $this->load->view('agent/layout', $data);
-}
+    
+    public function petugas()
+    {
+        $agent_id = $this->session->userdata('agent_id');
+        $data['petugas'] = $this->Agent_model->get_petugas_by_agent($agent_id);
+        $data['view_name'] = 'agent/petugas';
+        $this->load->view('agent/layout', $data);
+    }
 
-public function register_petugas()
-{
-    $agent_id = $this->session->userdata('agent_id');
-    $nama_petugas = $this->input->post('nama_petugas');
+    public function register_petugas()
+    {
+        $agent_id = $this->session->userdata('agent_id');
+        $nama_petugas = $this->input->post('nama_petugas');
 
-    if (empty($nama_petugas)) {
-        $this->session->set_flashdata('error_form', 'Nama petugas tidak boleh kosong.');
-    } else {
-        if ($this->Agent_model->add_petugas($agent_id, $nama_petugas)) {
-            $this->session->set_flashdata('success', 'Petugas berhasil ditambahkan.');
+        if (empty($nama_petugas)) {
+            $this->session->set_flashdata('error_form', 'Nama petugas tidak boleh kosong.');
         } else {
-            $this->session->set_flashdata('error_form', 'Gagal menambahkan petugas.');
+            if ($this->Agent_model->add_petugas($agent_id, $nama_petugas)) {
+                $this->session->set_flashdata('success', 'Petugas berhasil ditambahkan.');
+            } else {
+                $this->session->set_flashdata('error_form', 'Gagal menambahkan petugas.');
+            }
         }
-    }
-    redirect('agent/petugas');
-}
-public function delete_petugas($id_petugas)
-{
-    $agent_id = $this->session->userdata('agent_id');
-
-    if ($this->Agent_model->delete_petugas($id_petugas, $agent_id)) {
-        $this->session->set_flashdata('success', 'Petugas berhasil dihapus.');
-    } else {
-        $this->session->set_flashdata('error_form', 'Gagal menghapus petugas.');
+        redirect('agent/petugas');
     }
 
-    redirect('agent/petugas');
-}
-public function get_jenis_by_kategori()
-{
-    $id_kategori = $this->input->get('id_kategori');
-    $result = $this->Agent_model->get_jenis_by_kategori($id_kategori);
-    echo json_encode($result);
-}
-	public function laporan_transaksi()
+    public function delete_petugas($id_petugas)
+    {
+        $agent_id = $this->session->userdata('agent_id');
+
+        if ($this->Agent_model->delete_petugas($id_petugas, $agent_id)) {
+            $this->session->set_flashdata('success', 'Petugas berhasil dihapus.');
+        } else {
+            $this->session->set_flashdata('error_form', 'Gagal menghapus petugas.');
+        }
+
+        redirect('agent/petugas');
+    }
+
+    public function get_jenis_by_kategori()
+    {
+        $id_kategori = $this->input->get('id_kategori');
+        $result = $this->Agent_model->get_jenis_by_kategori($id_kategori);
+        echo json_encode($result);
+    }
+
+    public function laporan_transaksi()
+    {
+        $agent_id = $this->session->userdata('agent_id');
+        $bulan = $this->input->get('bulan');
+        $tahun = $this->input->get('tahun');
+
+        $data['bulan'] = $bulan;
+        $data['tahun'] = $tahun;
+        $data['laporan'] = $this->Agent_model->get_laporan_transaksi($agent_id, $bulan, $tahun);
+
+        $data['view_name'] = 'agent/laporan_transaksi';
+        $this->load->view('agent/layout', $data);
+    }
+
+    public function export_excel()
+    {
+        $agent_id = $this->session->userdata('agent_id');
+        $bulan = $this->input->get('bulan');
+        $tahun = $this->input->get('tahun');
+
+        $laporan = $this->Agent_model->get_laporan_transaksi($agent_id, $bulan, $tahun);
+
+        header("Content-Type: application/vnd.ms-excel");
+        header("Content-Disposition: attachment; filename=Laporan_Transaksi_Agent_{$bulan}_{$tahun}.xls");
+
+        echo "<table border='1'>
+            <tr>
+                <th>NO</th>
+                <th>TANGGAL</th>
+                <th>NO REKENING</th>
+                <th>NAMA NASABAH</th>
+                <th>TIPE SAMPAH</th>
+                <th>JENIS</th>
+                <th>KODE</th>
+                <th>URAIAN BARANG</th>
+                <th>JUMLAH (Kg)</th>
+                <th>JUMLAH BOTOL (Biji)</th>
+                <th>HARGA SATUAN (Rp)</th>
+                <th>PENDAPATAN (Rp)</th>
+                <th>TARIK TUNAI (Rp)</th>
+                <th>SALDO AKHIR (Rp)</th>
+                <th>PETUGAS</th>
+            </tr>";
+
+        $no = 1;
+        foreach ($laporan as $row) {
+            echo "<tr>
+                <td>{$no}</td>
+                <td>{$row['tanggal_setor']}</td>
+                <td>{$row['no_rekening']}</td>
+                <td>{$row['nama_nasabah']}</td>
+                <td>{$row['tipe_sampah']}</td>
+                <td>{$row['nama_kategori']}</td>
+                <td>{$row['kode']}</td>
+                <td>{$row['nama_jenis']}</td>
+                <td>{$row['berat']}</td>
+                <td>{$row['jumlah_botol']}</td>
+                <td>{$row['harga']}</td>
+                <td>{$row['pendapatan']}</td>
+                <td>{$row['tarik_tunai']}</td>
+                <td>{$row['saldo_akhir']}</td>
+                <td>{$row['nama_petugas']}</td>
+            </tr>";
+            $no++;
+        }
+
+        echo "</table>";
+    }
+	public function export_my_users()
 {
     $agent_id = $this->session->userdata('agent_id');
-    $bulan = $this->input->get('bulan');
-    $tahun = $this->input->get('tahun');
 
-    $data['bulan'] = $bulan;
-    $data['tahun'] = $tahun;
-    $data['laporan'] = $this->Agent_model->get_laporan_transaksi($agent_id, $bulan, $tahun);
+    // Ambil data nasabah
+    $users = $this->Agent_model->get_all_users_by_agent($agent_id);
 
-    $data['view_name'] = 'agent/laporan_transaksi';
-    $this->load->view('agent/layout', $data);
-}
-
-public function export_excel()
-{
-    $agent_id = $this->session->userdata('agent_id');
-    $bulan = $this->input->get('bulan');
-    $tahun = $this->input->get('tahun');
-
-    $laporan = $this->Agent_model->get_laporan_transaksi($agent_id, $bulan, $tahun);
-
+    // Siapkan file Excel
     header("Content-Type: application/vnd.ms-excel");
-    header("Content-Disposition: attachment; filename=Laporan_Transaksi_Agent_{$bulan}_{$tahun}.xls");
+    header("Content-Disposition: attachment; filename=Daftar_Nasabah_Agent.xls");
 
     echo "<table border='1'>
-        <tr>
-            <th>NO</th>
-            <th>TANGGAL</th>
-            <th>NO REKENING</th>
-            <th>NAMA NASABAH</th>
-            <th>TIPE SAMPAH</th>
-            <th>JENIS</th>
-            <th>KODE</th>
-            <th>URAIAN BARANG</th>
-            <th>JUMLAH (Kg)</th>
-            <th>JUMLAH BOTOL (Biji)</th>
-            <th>HARGA SATUAN (Rp)</th>
-            <th>PENDAPATAN (Rp)</th>
-            <th>TARIK TUNAI (Rp)</th>
-            <th>SALDO AKHIR (Rp)</th>
-            <th>PETUGAS</th>
-        </tr>";
+            <tr>
+                <th>No</th>
+                <th>Nama Nasabah</th>
+                <th>Telepon</th>
+                <th>Alamat</th>
+                <th>Tipe Nasabah</th>
+                <th>Status Iuran</th>
+                <th>Biaya Iuran</th>
+            </tr>";
 
     $no = 1;
-    foreach ($laporan as $row) {
+    foreach ($users as $u) {
+        $status = isset($u['iuran_status']) ? $u['iuran_status'] : '-';
+        $biaya  = isset($u['iuran_biaya']) ? number_format($u['iuran_biaya'], 0, ',', '.') : '-';
+
         echo "<tr>
-            <td>{$no}</td>
-            <td>{$row['tanggal_setor']}</td>
-            <td>{$row['no_rekening']}</td>
-            <td>{$row['nama_nasabah']}</td>
-            <td>{$row['tipe_sampah']}</td>
-            <td>{$row['nama_kategori']}</td>
-            <td>{$row['kode']}</td>
-            <td>{$row['nama_jenis']}</td>
-            <td>{$row['berat']}</td>
-            <td>{$row['jumlah_botol']}</td>
-            <td>{$row['harga']}</td>
-            <td>{$row['pendapatan']}</td>
-            <td>{$row['tarik_tunai']}</td>
-            <td>{$row['saldo_akhir']}</td>
-            <td>{$row['nama_petugas']}</td>
-        </tr>";
+                <td>{$no}</td>
+                <td>".html_escape($u['nama'])."</td>
+                <td>".html_escape($u['phone'] ?? '-')."</td>
+                <td>".html_escape($u['address'] ?? '-')."</td>
+                <td>".html_escape($u['tipe_nasabah'] ?? 'Belum Daftar')."</td>
+                <td>{$status}</td>
+                <td>{$biaya}</td>
+             </tr>";
+
         $no++;
     }
 
     echo "</table>";
 }
-
 
 
     public function logout()

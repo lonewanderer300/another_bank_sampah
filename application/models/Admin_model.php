@@ -17,10 +17,6 @@ class Admin_model extends CI_Model {
     {    
         // Logika ini diperbarui untuk menghitung langsung dari tabel 'iuran'
         $this->db->where('status_iuran', 'belum bayar');
-        
-        // Opsional: Jika Anda hanya ingin menghitung yang deadline-nya sudah lewat (menunggak)
-        // $this->db->where('deadline <', date('Y-m-d')); 
-        
         return $this->db->count_all_results('iuran');
     }
     
@@ -47,7 +43,6 @@ class Admin_model extends CI_Model {
     // --- MANAJEMEN AGEN & NASABAH ---
     public function get_all_agents()
     {
-        // Pastikan 'users.id_user' ada di dalam select
         $this->db->select('agent.id_agent, users.id_user, users.nama, users.email, agent.wilayah, agent.status');
         $this->db->from('agent');
         $this->db->join('users', 'users.id_user = agent.id_user');
@@ -58,57 +53,15 @@ class Admin_model extends CI_Model {
     public function get_all_customers()
     {
         $this->db->select('u.*, agent_user.nama as nama_agent');
-        $this->db->from('users u'); // 'u' adalah alias untuk tabel users
-
-        // GABUNG ke tabel 'agent' untuk dapat 'id_user' si agent
-        // berdasarkan 'id_agent_pilihan' milik si user
+        $this->db->from('users u');
         $this->db->join('agent a', 'u.id_agent_pilihan = a.id_agent', 'left');
-
-        // GABUNG LAGI ke tabel 'users' (sebagai 'agent_user') untuk dapat NAMA si agent
         $this->db->join('users agent_user', 'a.id_user = agent_user.id_user', 'left');
-        
-        /*
-        * PENTING:
-        * Fungsi Anda namanya 'get_all_customers', jadi saya asumsikan
-        * Anda hanya ingin menampilkan user dengan role 'user' (nasabah).
-        * * Jika Anda ingin menampilkan SEMUA user (termasuk admin/agent lain)
-        * di tabel ini, hapus baris '$this->db->where()' di bawah ini.
-        */
         $this->db->where('u.role', 'user'); 
-        
-        // Mengurutkan berdasarkan nama (opsional)
         $this->db->order_by('u.nama', 'ASC'); 
-
-        // Mengambil hasil kueri
         return $this->db->get()->result_array();
     }
 
-    // public function get_all_users_nasabah()
-    // {
-    //     // Pastikan 'users.role' ada di dalam select
-    //     $this->db->select('users.id_user, users.nama, users.email, users.phone, users.role');
-    //     $this->db->from('users');
-    //     $this->db->where('role', 'user');
-    //     return $this->db->get()->result_array();
-
-    //     $this->db->select('users.id_user, users.nama, users.email, users.phone, users.role');
-    //     $this->db->from('users');
-    //     $this->db->where('role', 'user');
-    //     return $this->db->get()->result_array();
-    // }
-    
-    public function approve_agent($agent_id)
-    {
-        $this->db->where('id_agent', $agent_id);
-        return $this->db->update('agent', ['status' => 'aktif']);
-    }
-
-    public function reject_agent($agent_id)
-    {
-        $this->db->where('id_agent', $agent_id);
-        return $this->db->update('agent', ['status' => 'nonaktif']);
-    }
-	public function get_all_nasabah_with_iuran()
+    public function get_all_nasabah_with_iuran()
     {
         $this->db->select('n.id_nasabah, n.tipe_nasabah, n.jumlah_nasabah, i.biaya, i.deadline, i.status_iuran');
         $this->db->from('nasabah n');
@@ -121,19 +74,18 @@ class Admin_model extends CI_Model {
         $existing = $this->db->get_where('iuran', ['id_nasabah' => $data['id_nasabah']])->row_array();
 
         if ($existing) {
-            // ✅ Update only biaya and status, keep the existing deadline
             $this->db->where('id_nasabah', $data['id_nasabah']);
             return $this->db->update('iuran', [
                 'biaya' => $data['biaya'],
                 'status_iuran' => 'belum bayar'
             ]);
         } else {
-            // Insert new iuran if not exists
+            $data['deadline'] = $data['deadline'] ?? date('Y-m-d', strtotime('+30 days'));
             return $this->db->insert('iuran', $data);
         }
     }
 
-    // FUNGSI BARU UNTUK EDIT/DELETE
+    // FUNGSI BARU UNTUK EDIT/DELETE USER
     
     public function get_user_by_id($id_user)
     {
@@ -153,14 +105,12 @@ class Admin_model extends CI_Model {
 
     public function update_agent_by_user_id($id_user, $data)
     {
-        // Cek dulu apakah data agent sudah ada
         $exists = $this->db->get_where('agent', ['id_user' => $id_user])->num_rows() > 0;
         
         if ($exists) {
             $this->db->where('id_user', $id_user);
             return $this->db->update('agent', $data);
         } else {
-            // Jika user diubah jadi agent, tapi data agent blm ada, buat baru
             $data['id_user'] = $id_user;
             return $this->db->insert('agent', $data);
         }
@@ -168,43 +118,274 @@ class Admin_model extends CI_Model {
 
     public function delete_user_and_related_data($id_user)
     {
-        // Model ini akan menghapus user dan data terkait (agent/nasabah)
-        // karena ada foreign key constraint (ON DELETE CASCADE) di database.
-        // Jika tidak ada CASCADE, Anda harus hapus manual dari tabel agent/nasabah dulu.
-        
-        // Asumsi ON DELETE CASCADE sudah diset di database
         $this->db->where('id_user', $id_user);
         return $this->db->delete('users');
-        
-        /* // Jika TIDAK ADA CASCADE, lakukan ini:
-        $this->db->trans_start();
-        $this->db->delete('agent', ['id_user' => $id_user]);
-        $this->db->delete('nasabah', ['id_users' => $id_user]); // pastikan nama kolom 'id_users'
-        $this->db->delete('users', ['id_user' => $id_user]);
-        $this->db->trans_complete();
-        return $this->db->trans_status();
-        */
     }
 
     public function get_wilayah_enum_values()
     {
-        // Jalankan kueri SQL 'SHOW COLUMNS'
         $query = $this->db->query("SHOW COLUMNS FROM agent LIKE 'wilayah'");
         
         if (!$query || $query->num_rows() == 0) {
-            return []; // Gagal atau kolom tidak ditemukan
+            return [];
         }
 
         $row = $query->row_array();
-        
-        // Hasilnya akan seperti: "enum('Dusun Selatan','Gunung Bintang Awai',...)"
         $type = $row['Type']; 
-
-        // Gunakan regex untuk mengekstrak semua nilai di dalam tanda kutip
         preg_match_all("/'([^']*)'/", $type, $matches);
 
-        // $matches[1] akan berisi array: ['Dusun Selatan', 'Gunung Bintang Awai', ...]
         return $matches[1] ?? []; 
+    }
+    
+    // =============================================================
+    // --- MANAJEMEN TRANSAKSI OLEH ADMIN ---
+    // =============================================================
+
+    /**
+     * FUNGSI BARU: Mengambil daftar semua user untuk dropdown (Admin)
+     */
+    public function get_all_users_for_dropdown()
+    {
+        $this->db->select('id_user, nama, role');
+        $this->db->from('users');
+        $this->db->where('role', 'user'); 
+        $this->db->or_where('role', 'agent'); // Admin juga bisa memilih Agen sebagai nasabah jika diperlukan
+        $this->db->order_by('nama', 'ASC');
+        return $this->db->get()->result_array();
+    }
+
+    /**
+     * FUNGSI BARU: Mengambil daftar semua agen untuk dropdown (Admin)
+     */
+    public function get_all_agents_for_dropdown()
+    {
+        $this->db->select('a.id_agent, u.nama');
+        $this->db->from('agent a');
+        $this->db->join('users u', 'u.id_user = a.id_user');
+        $this->db->where('a.status', 'aktif');
+        $this->db->order_by('u.nama', 'ASC');
+        return $this->db->get()->result_array();
+    }
+    
+    /**
+     * FUNGSI BARU: Mengambil semua kategori sampah (Helper)
+     */
+    public function get_all_categories()
+    {
+        return $this->db->get('kategori_sampah')->result_array();
+    }
+    
+    /**
+     * FUNGSI BARU: Mengambil petugas berdasarkan Agent ID (Helper)
+     */
+    public function get_petugas_by_agent($agent_id)
+    {
+        if (empty($agent_id)) {
+            return [];
+        }
+        $this->db->where('id_agent', $agent_id);
+        $query = $this->db->get('petugas');
+        return $query->result_array();
+    }
+
+    /**
+     * FUNGSI BARU: Mengambil jenis sampah berdasarkan kategori (Helper)
+     */
+    public function get_jenis_by_kategori($id_kategori)
+    {
+        $this->db->select('js.id_jenis, js.nama_jenis, hh.harga');
+        $this->db->from('jenis_sampah js');
+        $this->db->join('(SELECT id_jenis, MAX(id_histori) as latest FROM harga_histori GROUP BY id_jenis) as sub', 'sub.id_jenis = js.id_jenis', 'inner');
+        $this->db->join('harga_histori hh', 'hh.id_histori = sub.latest', 'inner');
+        $this->db->where('js.id_kategori', $id_kategori);
+        return $this->db->get()->result_array();
+    }
+
+    /**
+     * Mengambil semua transaksi setoran dengan nama Nasabah dan Agen.
+     */
+    public function get_all_transactions()
+    {
+        $this->db->select('ts.id_setoran, ts.tanggal_setor, ts.total_berat, ts.total_poin, u_nasabah.nama as nasabah_name, u_agent.nama as agent_name');
+        $this->db->from('transaksi_setoran ts');
+        // JOIN ke users untuk nama Nasabah
+        $this->db->join('users u_nasabah', 'u_nasabah.id_user = ts.id_user', 'left');
+        // JOIN ke agent untuk mendapatkan id_user dari agent
+        $this->db->join('agent a', 'a.id_agent = ts.id_agent', 'left');
+        // JOIN ke users lagi untuk nama Agent (Bank Sampah)
+        $this->db->join('users u_agent', 'u_agent.id_user = a.id_user', 'left');
+        $this->db->order_by('ts.tanggal_setor', 'DESC');
+        return $this->db->get()->result_array();
+    }
+
+    /**
+     * Menghapus transaksi dan mengoreksi saldo nasabah.
+     */
+    public function delete_transaction($id_setoran)
+    {
+        $this->db->trans_start();
+
+        $transaction = $this->db->select('id_user, total_poin')->where('id_setoran', $id_setoran)->get('transaksi_setoran')->row();
+
+        if ($transaction) {
+            $user_id = $transaction->id_user;
+            $total_poin = $transaction->total_poin;
+
+            // Koreksi saldo/poin user (mengurangi nilai yang dihapus)
+            $this->db->set('poin', 'poin - ' . $total_poin, FALSE);
+            $this->db->set('saldo', 'saldo - ' . $total_poin, FALSE);
+            $this->db->where('id_user', $user_id);
+            $this->db->update('users');
+            
+            // Hapus detail transaksi (perintah ini akan menghapus detail yang terikat)
+            $this->db->where('id_setoran', $id_setoran)->delete('detail_setoran');
+
+            // Hapus transaksi master record
+            $this->db->where('id_setoran', $id_setoran)->delete('transaksi_setoran');
+        }
+
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
+    /**
+     * Mengambil data transaksi master, nasabah, dan agen yang terlibat.
+     * PERBAIKAN: Memastikan nama Agent (Bank Sampah) ikut terambil.
+     */
+    public function get_transaction_data($id_setoran)
+    {
+        $this->db->select('
+            ts.*, 
+            u_nasabah.nama as customer_name, 
+            a.id_agent, 
+            u_agent.nama as agent_name
+        ');
+        $this->db->from('transaksi_setoran ts');
+        // Join ke users untuk nama Nasabah
+        $this->db->join('users u_nasabah', 'u_nasabah.id_user = ts.id_user', 'left');
+        // Join ke agent untuk mendapatkan id_user dari agent
+        $this->db->join('agent a', 'a.id_agent = ts.id_agent', 'left');
+        // Join ke users lagi untuk nama Agent (Bank Sampah)
+        $this->db->join('users u_agent', 'u_agent.id_user = a.id_user', 'left');
+        $this->db->where('ts.id_setoran', $id_setoran);
+        return $this->db->get()->row_array();
+    }
+
+    /**
+     * Mengambil detail item sampah, kategori, dan harga saat ini (untuk pre-fill form edit).
+     */
+    public function get_current_waste_details($id_setoran)
+    {
+        $this->db->select('ds.id_detail, ds.id_jenis, ds.berat, ds.subtotal_poin, js.nama_jenis, ks.id_kategori, ks.nama_kategori');
+        $this->db->from('detail_setoran ds');
+        $this->db->join('jenis_sampah js', 'js.id_jenis = ds.id_jenis');
+        $this->db->join('kategori_sampah ks', 'ks.id_kategori = js.id_kategori');
+        $this->db->where('ds.id_setoran', $id_setoran);
+        $details = $this->db->get()->result_array();
+
+        foreach ($details as &$detail) {
+            $this->db->select('harga');
+            $this->db->from('harga_histori');
+            $this->db->where('id_jenis', $detail['id_jenis']);
+            $this->db->order_by('tanggal_update', 'DESC');
+            $this->db->limit(1);
+            $current_price_row = $this->db->get()->row();
+            $detail['current_price'] = $current_price_row ? $current_price_row->harga : 0;
+        }
+        unset($detail);
+
+        return $details;
+    }
+
+    /**
+     * Mengupdate transaksi: koreksi saldo lama, hapus detail lama, simpan detail baru, koreksi saldo baru.
+     */
+    public function update_transaction_and_user_balance($id_setoran, $old_total_poin, $customer_id, $transaction_date, $valid_waste_items, $id_agent_baru = null, $id_petugas = null)
+    {
+        $total_berat_transaksi = 0;
+        $total_poin_transaksi = 0;
+        $detail_batch_data = [];
+
+        $prices = [];
+        $waste_type_ids = array_keys($valid_waste_items);
+
+        $this->db->select('id_jenis, harga');
+        $this->db->from('harga_histori');
+        $this->db->where_in('id_jenis', $waste_type_ids);
+        $this->db->where_in('id_histori', "(SELECT MAX(id_histori) FROM harga_histori GROUP BY id_jenis)", FALSE);
+        $price_query = $this->db->get();
+        foreach ($price_query->result() as $row) {
+            $prices[$row->id_jenis] = $row->harga;
+        }
+
+        foreach ($valid_waste_items as $id_jenis => $berat) {
+            if (!isset($prices[$id_jenis]) || $prices[$id_jenis] <= 0) {
+                return ['success' => false, 'message' => 'Harga belum diatur untuk id_jenis: ' . $id_jenis . '. Transaksi dibatalkan.'];
+            }
+
+            $harga_satuan = $prices[$id_jenis];
+            $subtotal_poin_item = $berat * $harga_satuan;
+
+            $total_berat_transaksi += $berat;
+            $total_poin_transaksi += $subtotal_poin_item;
+
+            $detail_batch_data[] = [
+                'id_setoran'    => $id_setoran,
+                'id_jenis'      => $id_jenis,
+                'berat'         => $berat,
+                'subtotal_poin' => $subtotal_poin_item
+            ];
+        }
+        
+        $this->db->trans_start();
+
+        // A. Revert old points/saldo (kurangi saldo lama)
+        $this->db->set('poin', 'poin - ' . $old_total_poin, FALSE);
+        $this->db->set('saldo', 'saldo - ' . $old_total_poin, FALSE);
+        $this->db->where('id_user', $customer_id);
+        $this->db->update('users');
+
+        // B. Hapus detail transaksi lama
+        $this->db->where('id_setoran', $id_setoran);
+        $this->db->delete('detail_setoran');
+
+        // C. Insert detail transaksi baru
+        $this->db->insert_batch('detail_setoran', $detail_batch_data);
+
+        // D. Update transaksi master
+        $setoran_data = [
+            'id_user'       => $customer_id, 
+            'tanggal_setor' => $transaction_date,
+            'total_berat'   => $total_berat_transaksi,
+            'total_poin'    => $total_poin_transaksi
+        ];
+        
+        // Khusus Admin: Perbarui Agen jika ada input baru (id_agent_baru)
+        if (!empty($id_agent_baru)) {
+            $setoran_data['id_agent'] = $id_agent_baru;
+        }
+        
+        // Perbarui id_petugas jika kolomnya ada di transaksi setoran (meskipun SQL Anda tidak menunjukkannya)
+        // Jika Anda ingin menyimpan id_petugas, Anda harus menambahkan kolom 'id_petugas' ke tabel 'transaksi_setoran' dulu.
+        // Untuk saat ini, kita biarkan kosong di sini.
+        // if (!empty($id_petugas) && KONDISI_KOLOM_PETUGAS_ADA) { $setoran_data['id_petugas'] = $id_petugas; }
+
+        $this->db->where('id_setoran', $id_setoran);
+        $this->db->update('transaksi_setoran', $setoran_data);
+
+        // E. Add new points/saldo (tambahkan saldo baru)
+        $this->db->set('poin', 'poin + ' . $total_poin_transaksi, FALSE);
+        $this->db->set('saldo', 'saldo + ' . $total_poin_transaksi, FALSE); 
+        $this->db->where('id_user', $customer_id);
+        $this->db->update('users');
+
+        $this->db->trans_complete();
+
+        if ($this->db->trans_status() === FALSE) {
+            return ['success' => false, 'message' => 'Gagal memperbarui transaksi ke database.'];
+        } else {
+            return ['success' => true, 'message' => 'Transaksi berhasil diperbarui.'];
+        }
     }
 	public function get_laporan_transaksi_admin($bulan = null, $tahun = null)
 {
@@ -252,6 +433,5 @@ class Admin_model extends CI_Model {
     $query = $this->db->get();
     return $query->result_array();
 }
-
-
+    
 }

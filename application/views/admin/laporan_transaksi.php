@@ -19,6 +19,8 @@
         </div>
         <div class="col-md-3">
             <button type="submit" class="btn btn-success"><i class="bi bi-search"></i> Tampilkan</button>
+        </div>
+        <div class="col-md-3 text-end">
             <?php if (!empty($laporan)) : ?>
                 <a href="<?= base_url("admin/export_excel?bulan={$bulan}&tahun={$tahun}") ?>" class="btn btn-primary"><i class="bi bi-file-earmark-excel"></i> Download Excel</a>
             <?php endif; ?>

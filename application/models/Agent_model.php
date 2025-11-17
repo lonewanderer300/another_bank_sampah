@@ -13,10 +13,10 @@ class Agent_model extends CI_Model {
 
     public function count_agent_customers($agent_id)
     {
-        $this->db->select('COUNT(DISTINCT id_user) as total_customers');
-        $this->db->where('id_agent', $agent_id);
-        $query = $this->db->get('transaksi_setoran');
-        return $query->row()->total_customers ?? 0;
+        // PERBAIKAN: Hitung user yang memilih agent ini sebagai agent pilihan mereka (id_agent_pilihan)
+        $this->db->where('id_agent_pilihan', $agent_id);
+        $this->db->where('role', 'user'); 
+        return $this->db->count_all_results('users');
     }
 
     public function get_total_waste_by_agent($agent_id)
@@ -63,14 +63,13 @@ class Agent_model extends CI_Model {
     }
 
     /**
-     * Mengambil daftar jenis sampah beserta harga terkini
-     */
+     * Mengambil daftar jenis sampah beserta harga terkini
+     */
     public function get_all_waste_types_with_prices()
     {
         // Query untuk mendapatkan harga terkini per jenis sampah
         // Beri alias 'latest_price' pada subquery
         $subQuery = "(SELECT id_jenis, harga FROM harga_histori WHERE id_histori IN (SELECT MAX(id_histori) FROM harga_histori GROUP BY id_jenis)) as latest_price";
-
         // PERBAIKAN: Gunakan alias 'latest_price' bukan 'lp'
         $this->db->select('js.id_jenis, js.nama_jenis, latest_price.harga');
         $this->db->from('jenis_sampah js');
@@ -82,24 +81,23 @@ class Agent_model extends CI_Model {
     }
 
     /**
-     * Menyimpan transaksi setoran baru dengan multiple detail sampah
-     * @param int $agent_id ID agent yang login
-     * @param int $customer_id ID user nasabah
-     * @param string $transaction_date Tanggal transaksi (Y-m-d H:i:s)
-     * @param array $waste_items Array asosiatif [id_jenis => berat]
-     * @return array Status penyimpanan ['success' => bool, 'message' => string]
-     */
+     * Menyimpan transaksi setoran baru dengan multiple detail sampah
+     * @param int $agent_id ID agent yang login
+     * @param int $customer_id ID user nasabah
+     * @param string $transaction_date Tanggal transaksi (Y-m-d H:i:s)
+     * @param array $waste_items Array asosiatif [id_jenis => berat]
+     * @return array Status penyimpanan ['success' => bool, 'message' => string]
+     */
     public function save_transaction($agent_id, $customer_id, $transaction_date, $waste_items)
     {
         $total_berat_transaksi = 0;
         $total_poin_transaksi = 0;
         $detail_batch_data = []; // Untuk batch insert detail
-
         // Ambil semua harga terkini sekaligus untuk efisiensi
         $prices = [];
         $waste_type_ids = array_keys($waste_items); // Ambil ID jenis sampah dari input
         if (empty($waste_type_ids)) {
-             return ['success' => false, 'message' => 'Tidak ada detail sampah yang dimasukkan.'];
+            return ['success' => false, 'message' => 'Tidak ada detail sampah yang dimasukkan.'];
         }
 
         $this->db->select('id_jenis, harga');
@@ -117,18 +115,15 @@ class Agent_model extends CI_Model {
             if (!is_numeric($berat) || $berat <= 0) {
                 continue; // Lewati item ini jika berat tidak valid
             }
-
             // Pastikan harga ada
             if (!isset($prices[$id_jenis]) || $prices[$id_jenis] <= 0) {
-                 return ['success' => false, 'message' => 'Harga belum diatur untuk id_jenis: ' . $id_jenis . '. Transaksi dibatalkan.'];
+                return ['success' => false, 'message' => 'Harga belum diatur untuk id_jenis: ' . $id_jenis . '. Transaksi dibatalkan.'];
 
 
 
             }
-
             $harga_satuan = $prices[$id_jenis];
             $subtotal_poin_item = $berat * $harga_satuan;
-
             // Tambahkan ke total transaksi
             $total_berat_transaksi += $berat;
             $total_poin_transaksi += $subtotal_poin_item;
@@ -141,12 +136,10 @@ class Agent_model extends CI_Model {
                 'subtotal_poin' => $subtotal_poin_item
             ];
         }
-
         // Jika tidak ada detail yang valid setelah divalidasi
         if (empty($detail_batch_data)) {
             return ['success' => false, 'message' => 'Tidak ada detail sampah yang valid untuk disimpan.'];
         }
-
         // Mulai Database Transaction
         $this->db->trans_start();
 
@@ -159,40 +152,165 @@ class Agent_model extends CI_Model {
             'total_berat'   => $total_berat_transaksi,
             'total_poin'    => $total_poin_transaksi
         ];
-		log_message('debug', 'DEBUG id_jenis value: ' . print_r($id_jenis, true));
+        log_message('debug', 'DEBUG id_jenis value: ' . print_r($id_jenis, true));
 
         $this->db->insert('transaksi_setoran', $setoran_data);
         $id_setoran = $this->db->insert_id();
-
         // Update id_setoran untuk setiap item di batch data detail
         foreach ($detail_batch_data as &$detail_item) { // Gunakan reference (&) untuk update langsung
             $detail_item['id_setoran'] = $id_setoran;
         }
-        unset($detail_item); // Hapus reference setelah loop
-
+        unset($detail_item); // Hapus reference setelah loop    
         // Insert multiple detail ke tabel detail_setoran menggunakan Batch Insert
         $this->db->insert_batch('detail_setoran', $detail_batch_data);
 
         // (Opsional) Update saldo/poin user
-         $this->db->set('poin', 'poin + ' . $total_poin_transaksi, FALSE);
-         $this->db->set('saldo', 'saldo + ' . $total_poin_transaksi, FALSE); // Asumsi poin = nilai rupiah
-         $this->db->where('id_user', $customer_id);
-         $this->db->update('users');
-
+        $this->db->set('poin', 'poin + ' . $total_poin_transaksi, FALSE);
+        $this->db->set('saldo', 'saldo + ' . $total_poin_transaksi, FALSE); // Asumsi poin = nilai rupiah
+        $this->db->where('id_user', $customer_id);
+        $this->db->update('users');
         // Selesaikan Database Transaction
         $this->db->trans_complete();
 
         // Kembalikan status
         if ($this->db->trans_status() === FALSE) {
-             return ['success' => false, 'message' => 'Gagal menyimpan transaksi ke database.'];
+            return ['success' => false, 'message' => 'Gagal menyimpan transaksi ke database.'];
         } else {
              return ['success' => true, 'message' => 'Transaksi berhasil disimpan.'];
         }
     }
 
+    public function get_transaction_data($id_setoran)
+    {
+        $this->db->select('
+            ts.*, 
+            u_nasabah.nama as customer_name,
+            a.id_agent,
+            u_agent.nama as agent_name
+        ');
+        $this->db->from('transaksi_setoran ts');
+        // Join ke users untuk nama Nasabah
+        $this->db->join('users u_nasabah', 'u_nasabah.id_user = ts.id_user', 'left'); 
+        // Join ke agent untuk mendapatkan id_user dari agent
+        $this->db->join('agent a', 'a.id_agent = ts.id_agent', 'left'); 
+        // Join ke users lagi untuk nama Agent (Bank Sampah)
+        $this->db->join('users u_agent', 'u_agent.id_user = a.id_user', 'left'); 
+        $this->db->where('ts.id_setoran', $id_setoran);
+        return $this->db->get()->row_array();
+    }
+
+    public function get_current_waste_details($id_setoran)
+    {
+        // 1. Ambil detail yang tersimpan
+        $this->db->select('ds.id_detail, ds.id_jenis, ds.berat, ds.subtotal_poin, js.nama_jenis, ks.id_kategori, ks.nama_kategori');
+        $this->db->from('detail_setoran ds');
+        $this->db->join('jenis_sampah js', 'js.id_jenis = ds.id_jenis');
+        $this->db->join('kategori_sampah ks', 'ks.id_kategori = js.id_kategori');
+        $this->db->where('ds.id_setoran', $id_setoran);
+        $details = $this->db->get()->result_array();
+
+        // 2. Ambil harga terbaru saat ini untuk setiap jenis sampah
+        foreach ($details as &$detail) {
+            $this->db->select('harga');
+            $this->db->from('harga_histori');
+            $this->db->where('id_jenis', $detail['id_jenis']);
+            $this->db->order_by('tanggal_update', 'DESC');
+            $this->db->limit(1);
+            $current_price_row = $this->db->get()->row();
+            $detail['current_price'] = $current_price_row ? $current_price_row->harga : 0;
+        }
+        unset($detail);
+
+        return $details;
+    }
+
+    public function update_transaction_and_user_balance($id_setoran, $old_total_poin, $customer_id, $transaction_date, $valid_waste_items)
+    {
+        $total_berat_transaksi = 0;
+        $total_poin_transaksi = 0;
+        $detail_batch_data = [];
+
+        // --- 1. Ambil harga terbaru saat ini untuk perhitungan ---
+        $prices = [];
+        $waste_type_ids = array_keys($valid_waste_items);
+        if (empty($waste_type_ids)) {
+            return ['success' => false, 'message' => 'Tidak ada detail sampah yang valid untuk disimpan.'];
+        }
+
+        $this->db->select('id_jenis, harga');
+        $this->db->from('harga_histori');
+        $this->db->where_in('id_jenis', $waste_type_ids);
+        $this->db->where_in('id_histori', "(SELECT MAX(id_histori) FROM harga_histori GROUP BY id_jenis)", FALSE);
+        $price_query = $this->db->get();
+        foreach ($price_query->result() as $row) {
+            $prices[$row->id_jenis] = $row->harga;
+        }
+
+        // --- 2. Validasi dan hitung total baru ---
+        foreach ($valid_waste_items as $id_jenis => $berat) {
+            if (!isset($prices[$id_jenis]) || $prices[$id_jenis] <= 0) {
+                return ['success' => false, 'message' => 'Harga belum diatur untuk id_jenis: ' . $id_jenis . '. Transaksi dibatalkan.'];
+            }
+
+            $harga_satuan = $prices[$id_jenis];
+            $subtotal_poin_item = $berat * $harga_satuan;
+
+            $total_berat_transaksi += $berat;
+            $total_poin_transaksi += $subtotal_poin_item;
+
+            $detail_batch_data[] = [
+                'id_setoran'    => $id_setoran,
+                'id_jenis'      => $id_jenis,
+                'berat'         => $berat,
+                'subtotal_poin' => $subtotal_poin_item
+            ];
+        }
+        
+        // --- 3. Database Transaction ---
+        $this->db->trans_start();
+
+        // A. Revert old points/saldo (kurangi saldo lama)
+        $this->db->set('poin', 'poin - ' . $old_total_poin, FALSE);
+        $this->db->set('saldo', 'saldo - ' . $old_total_poin, FALSE);
+        $this->db->where('id_user', $customer_id);
+        $this->db->update('users');
+
+        // B. Hapus detail transaksi lama
+        $this->db->where('id_setoran', $id_setoran);
+        $this->db->delete('detail_setoran');
+
+        // C. Insert detail transaksi baru
+        $this->db->insert_batch('detail_setoran', $detail_batch_data);
+
+        // D. Update transaksi master
+        $setoran_data = [
+            'id_user'       => $customer_id, // Perbarui nasabah jika diganti
+            'tanggal_setor' => $transaction_date,
+            'total_berat'   => $total_berat_transaksi,
+            'total_poin'    => $total_poin_transaksi
+        ];
+        $this->db->where('id_setoran', $id_setoran);
+        $this->db->update('transaksi_setoran', $setoran_data);
+
+        // E. Add new points/saldo (tambahkan saldo baru)
+        $this->db->set('poin', 'poin + ' . $total_poin_transaksi, FALSE);
+        $this->db->set('saldo', 'saldo + ' . $total_poin_transaksi, FALSE); 
+        $this->db->where('id_user', $customer_id);
+        $this->db->update('users');
+
+        $this->db->trans_complete();
+
+        // --- 4. Return Status ---
+        if ($this->db->trans_status() === FALSE) {
+            return ['success' => false, 'message' => 'Gagal memperbarui transaksi ke database.'];
+        } else {
+            return ['success' => true, 'message' => 'Transaksi berhasil diperbarui.'];
+        }
+    }
+    
     /**
-     * Mengambil daftar nasabah yang TELAH MEMILIH agent ini
-     */
+     * Mengambil daftar nasabah yang TELAH MEMILIH agent ini
+     */
     public function get_agent_customers_list($agent_id)
     {
         $this->db->select('u.nama, u.email, u.phone, u.created_at as join_date');
@@ -202,7 +320,7 @@ class Agent_model extends CI_Model {
         $this->db->order_by('u.nama', 'ASC');
         return $this->db->get()->result_array();
     }
-    
+
     public function get_agent_profile($user_id)
     {
         $this->db->select('u.*, a.wilayah');
@@ -219,16 +337,14 @@ class Agent_model extends CI_Model {
         // Update tabel users
         $this->db->where('id_user', $user_id);
         $this->db->update('users', $data_user);
-
         // Update tabel agent
         $this->db->where('id_agent', $agent_id);
         $this->db->update('agent', $data_agent);
 
         $this->db->trans_complete();
-
         return $this->db->trans_status();
     }
-	// --- PETUGAS (staff agent) ---
+    // --- PETUGAS (staff agent) ---
 
     public function get_petugas_by_agent($agent_id)
     {
@@ -245,15 +361,13 @@ class Agent_model extends CI_Model {
         ];
         return $this->db->insert('petugas', $data);
     }
-
     public function delete_petugas($id_petugas, $agent_id)
     {
-        // Pastikan hanya bisa menghapus petugas milik agent yang login
+     // Pastikan hanya bisa menghapus petugas milik agent yang login
         $this->db->where('id_petugas', $id_petugas);
         $this->db->where('id_agent', $agent_id);
         return $this->db->delete('petugas');
     }
-
     public function get_all_categories()
     {
         return $this->db->get('kategori_sampah')->result_array();
