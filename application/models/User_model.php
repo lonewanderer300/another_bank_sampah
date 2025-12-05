@@ -316,6 +316,22 @@ class User_model extends CI_Model {
             ]);
         }
     }
+	public function reset_iuran_on_agent_change($user_id)
+{
+    // ambil id_nasabah dari user
+    $nasabah = $this->db->get_where('nasabah', ['id_users' => $user_id])->row_array();
+
+    if (!$nasabah) return false;
+
+    $deadline_baru = date('Y-m-d', strtotime('+10 days'));
+
+    // update iuran
+    $this->db->where('id_nasabah', $nasabah['id_nasabah']);
+    return $this->db->update('iuran', [
+        'deadline' => $deadline_baru,
+        'status_iuran' => 'belum bayar'
+    ]);
+}
 
 
 }

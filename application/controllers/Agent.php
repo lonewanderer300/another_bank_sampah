@@ -36,6 +36,9 @@ class Agent extends CI_Controller {
         $data['total_waste'] = $this->Agent_model->get_total_waste_by_agent($agent_id);
         $data['recent_transactions'] = $this->Agent_model->get_agent_transactions($agent_id, 5); // Limit 5
 
+        //Ambil data nasabah belum bayar iuran
+        $data['unpaid_customers_agent'] = $this->Agent_model->count_unpaid_customers_by_agent($agent_id); 
+
         $data['view_name'] = 'agent/dashboard'; 
         $this->load->view('agent/layout', $data);
     }
@@ -47,23 +50,51 @@ class Agent extends CI_Controller {
 
         // Fetch iuran status for each user
         foreach ($users as &$user) {
-            // Ambil iuran yang statusnya 'belum bayar'
             $iuran = $this->Agent_model->get_pending_iuran_by_user($user['id_user']);
+            
             if ($iuran) {
                 $user['iuran_status'] = 'belum bayar';
                 $user['iuran_id'] = $iuran['id_iuran'];
                 $user['iuran_biaya'] = $iuran['biaya'];
+                $user['iuran_deadline'] = $iuran['deadline']; 
+                $user['iuran_paid_date'] = null;
+                
             } else {
+                // Jika sudah bayar, coba cari info pembayaran terakhir
+                $last_paid = $this->db
+                                ->select('tanggal_bayar, deadline')
+                                ->from('iuran i')
+                                ->join('nasabah n', 'n.id_nasabah = i.id_nasabah')
+                                ->where('n.id_users', $user['id_user'])
+                                ->where('i.status_iuran', 'sudah bayar')
+                                ->order_by('i.deadline', 'DESC') // Order by deadline untuk mendapatkan iuran bulan terbaru
+                                ->limit(1)
+                                ->get()
+                                ->row_array();
+
                 $user['iuran_status'] = 'sudah bayar';
                 $user['iuran_id'] = null;
                 $user['iuran_biaya'] = 0;
+                
+                $user['iuran_paid_date'] = $last_paid['tanggal_bayar'] ?? '-';
+                $user['iuran_deadline'] = $last_paid['deadline'] ?? '-'; // Deadline terakhir yang sudah dibayar
             }
         }
-        unset($user); // Break the reference
+        unset($user);
 
         $data['users'] = $users;
         $data['view_name'] = 'agent/my_user';
         $this->load->view('agent/layout', $data);
+    }
+
+    public function get_iuran_history($user_id)
+    {
+        $this->load->model('Agent_model');
+        $history = $this->Agent_model->get_iuran_history_by_user($user_id);
+
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode($history));
     }
 
     public function pay_iuran($iuran_id)
@@ -94,7 +125,10 @@ class Agent extends CI_Controller {
         $agent_id = $this->session->userdata('agent_id');
 
         $data['total_transactions'] = $this->Agent_model->count_agent_transactions($agent_id);
-        $data['total_income'] = $this->Agent_model->get_total_income_by_agent($agent_id);
+        
+        // 🚨 VERIFIKASI: Pastikan ini adalah baris yang digunakan di halaman Transaksi
+        $data['total_income'] = $this->Agent_model->get_total_income_by_agent($agent_id); 
+        
         $data['total_waste'] = $this->Agent_model->get_total_waste_by_agent($agent_id);
         $data['transactions'] = $this->Agent_model->get_agent_transactions($agent_id);
         $data['customers'] = $this->Agent_model->get_registered_customers_for_dropdown($agent_id);
@@ -104,7 +138,6 @@ class Agent extends CI_Controller {
         $data['view_name'] = 'agent/transactions';
         $this->load->view('agent/layout', $data);
     }
-
 
     /**
      * Fungsi untuk memproses penambahan transaksi baru
@@ -477,49 +510,6 @@ class Agent extends CI_Controller {
 
         echo "</table>";
     }
-	public function export_my_users()
-{
-    $agent_id = $this->session->userdata('agent_id');
-
-    // Ambil data nasabah
-    $users = $this->Agent_model->get_all_users_by_agent($agent_id);
-
-    // Siapkan file Excel
-    header("Content-Type: application/vnd.ms-excel");
-    header("Content-Disposition: attachment; filename=Daftar_Nasabah_Agent.xls");
-
-    echo "<table border='1'>
-            <tr>
-                <th>No</th>
-                <th>Nama Nasabah</th>
-                <th>Telepon</th>
-                <th>Alamat</th>
-                <th>Tipe Nasabah</th>
-                <th>Status Iuran</th>
-                <th>Biaya Iuran</th>
-            </tr>";
-
-    $no = 1;
-    foreach ($users as $u) {
-        $status = isset($u['iuran_status']) ? $u['iuran_status'] : '-';
-        $biaya  = isset($u['iuran_biaya']) ? number_format($u['iuran_biaya'], 0, ',', '.') : '-';
-
-        echo "<tr>
-                <td>{$no}</td>
-                <td>".html_escape($u['nama'])."</td>
-                <td>".html_escape($u['phone'] ?? '-')."</td>
-                <td>".html_escape($u['address'] ?? '-')."</td>
-                <td>".html_escape($u['tipe_nasabah'] ?? 'Belum Daftar')."</td>
-                <td>{$status}</td>
-                <td>{$biaya}</td>
-             </tr>";
-
-        $no++;
-    }
-
-    echo "</table>";
-}
-
 
     public function logout()
     {

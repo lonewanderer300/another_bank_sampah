@@ -1,9 +1,4 @@
 <div class="container-fluid">
-	<a href="<?= base_url('user/export_transactions_excel'); ?>" 
-   class="btn btn-success mb-3">
-    <i class="bi bi-file-earmark-excel-fill"></i> Download Excel
-</a>
-
     <h4 class="fw-bold mb-4">Riwayat Transaksi</h4>
 
     <div class="row">

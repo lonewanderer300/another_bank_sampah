@@ -63,10 +63,35 @@ class Admin_model extends CI_Model {
 
     public function get_all_nasabah_with_iuran()
     {
-        $this->db->select('n.id_nasabah, n.tipe_nasabah, n.jumlah_nasabah, i.biaya, i.deadline, i.status_iuran');
-        $this->db->from('nasabah n');
-        $this->db->join('iuran i', 'i.id_nasabah = n.id_nasabah', 'left');
-        return $this->db->get()->result_array();
+        
+	// 	    $this->db->select('
+    //     iuran.id_nasabah,
+    //     iuran.biaya,
+    //     iuran.deadline,
+    //     iuran.status_iuran,
+    //     nasabah.tipe_nasabah,
+    //     nasabah.jumlah_nasabah,
+    //     users.nama AS nama_user
+    // ');
+    // $this->db->from('iuran');
+    // $this->db->join('nasabah', 'nasabah.id_nasabah = iuran.id_nasabah', 'left');
+    // $this->db->join('users', 'users.id_user = nasabah.id_users', 'left');
+
+    // return $this->db->get()->result_array();
+	    $this->db->select('
+        iuran.*,
+        nasabah.tipe_nasabah,
+        nasabah.jumlah_nasabah,
+        users.nama AS nama_user,
+        agent_users.nama AS nama_agent
+    ');
+    $this->db->from('iuran');
+    $this->db->join('nasabah', 'nasabah.id_nasabah = iuran.id_nasabah', 'left');
+    $this->db->join('users', 'users.id_user = nasabah.id_users', 'left'); // pemilik akun
+    $this->db->join('agent', 'agent.id_agent = users.id_agent_pilihan', 'left'); // agent terpilih
+    $this->db->join('users AS agent_users', 'agent_users.id_user = agent.id_user', 'left'); // nama bank sampah
+
+    return $this->db->get()->result_array();
     }
 
     public function add_or_update_iuran($data)
@@ -387,51 +412,103 @@ class Admin_model extends CI_Model {
             return ['success' => true, 'message' => 'Transaksi berhasil diperbarui.'];
         }
     }
+    
 	public function get_laporan_transaksi_admin($bulan = null, $tahun = null)
-{
-    $this->db->select("
-        ts.tanggal_setor,
-        ru.no_rekening,
-        u.nama AS nama_nasabah,
-        agt.id_agent,
-        ua.nama AS nama_agent,
-        ts.id_setoran,
-        ts.total_poin AS pendapatan,
-        js.kode,
-        js.nama_jenis,
-        js.id_jenis,
-        ks.nama_kategori,
-        ts.total_berat,
-        ds.berat,
-        th.jumlah AS tarik_tunai,
-        u.saldo AS saldo_akhir,
-        tps.nama_tipe AS tipe_sampah,
-        p.nama_petugas,
-        hh.harga,
-        ds.berat AS jumlah_kg,
-        0 AS jumlah_botol
-    ");
-    $this->db->from('transaksi_setoran ts');
-    $this->db->join('detail_setoran ds', 'ds.id_setoran = ts.id_setoran', 'left');
-    $this->db->join('jenis_sampah js', 'js.id_jenis = ds.id_jenis', 'left');
-    $this->db->join('kategori_sampah ks', 'ks.id_kategori = js.id_kategori', 'left');
-    $this->db->join('harga_histori hh', 'hh.id_jenis = js.id_jenis', 'left');
-    $this->db->join('users u', 'u.id_user = ts.id_user', 'left');
-    $this->db->join('rekening_user ru', 'ru.id_user = u.id_user', 'left');
-    $this->db->join('tipe_sampah tps', 'tps.id_tipe_sampah = js.id_tipe_sampah', 'left');
-    $this->db->join('transaksi_penarikan th', 'th.id_user = u.id_user', 'left');
-    $this->db->join('agent agt', 'agt.id_agent = ts.id_agent', 'left');
-    $this->db->join('users ua', 'ua.id_user = agt.id_user', 'left'); // untuk nama agent
-    $this->db->join('petugas p', 'p.id_agent = ts.id_agent', 'left');
+    {
+        $this->db->select("
+            ts.tanggal_setor,
+            ru.no_rekening,
+            u.nama AS nama_nasabah,
+            agt.id_agent,
+            ua.nama AS nama_agent,
+            ts.id_setoran,
+            ts.total_poin AS pendapatan,
+            js.kode,
+            js.nama_jenis,
+            js.id_jenis,
+            ks.nama_kategori,
+            ts.total_berat,
+            ds.berat,
+            th.jumlah AS tarik_tunai,
+            u.saldo AS saldo_akhir,
+            tps.nama_tipe AS tipe_sampah,
+            p.nama_petugas,
+            hh.harga,
+            ds.berat AS jumlah_kg,
+            0 AS jumlah_botol
+        ");
+        $this->db->from('transaksi_setoran ts');
+        $this->db->join('detail_setoran ds', 'ds.id_setoran = ts.id_setoran', 'left');
+        $this->db->join('jenis_sampah js', 'js.id_jenis = ds.id_jenis', 'left');
+        $this->db->join('kategori_sampah ks', 'ks.id_kategori = js.id_kategori', 'left');
+        $this->db->join('harga_histori hh', 'hh.id_jenis = js.id_jenis', 'left');
+        $this->db->join('users u', 'u.id_user = ts.id_user', 'left');
+        $this->db->join('rekening_user ru', 'ru.id_user = u.id_user', 'left');
+        $this->db->join('tipe_sampah tps', 'tps.id_tipe_sampah = js.id_tipe_sampah', 'left');
+        $this->db->join('transaksi_penarikan th', 'th.id_user = u.id_user', 'left');
+        $this->db->join('agent agt', 'agt.id_agent = ts.id_agent', 'left');
+        $this->db->join('users ua', 'ua.id_user = agt.id_user', 'left'); // untuk nama agent
+        $this->db->join('petugas p', 'p.id_agent = ts.id_agent', 'left');
 
-    if ($bulan && $tahun) {
-        $this->db->where('MONTH(ts.tanggal_setor)', $bulan);
-        $this->db->where('YEAR(ts.tanggal_setor)', $tahun);
+        if ($bulan && $tahun) {
+            $this->db->where('MONTH(ts.tanggal_setor)', $bulan);
+            $this->db->where('YEAR(ts.tanggal_setor)', $tahun);
+        }
+
+        $this->db->order_by('ts.tanggal_setor', 'ASC');
+        $query = $this->db->get();
+        return $query->result_array();
+    }
+	public function get_nasabah_detail($id_nasabah)
+{
+    $this->db->select('n.*, u.nama, u.email, u.phone');
+    $this->db->from('nasabah n');
+    $this->db->join('users u', 'u.id_user = n.id_users', 'left');
+    $this->db->where('n.id_nasabah', $id_nasabah);
+    return $this->db->get()->row_array();
+}
+// Ambil semua master iuran
+public function get_all_iuran_master()
+{
+    return $this->db->get('iuran_master')->result_array();
+}
+
+// Update biaya iuran_master
+public function update_iuran_master($id_master, $biaya)
+{
+    return $this->db->update('iuran_master', 
+        ['biaya' => $biaya],
+        ['id_master' => $id_master]
+    );
+}
+
+// Tambah row baru
+public function add_iuran_master($data)
+{
+    return $this->db->insert('iuran_master', $data);
+}
+public function update_iuran_belum_bayar_by_master($tipe, $jumlah, $biaya_baru)
+{
+    // Cari semua nasabah dengan matching tipe & jumlah
+    $this->db->select('id_nasabah');
+    $this->db->from('nasabah');
+    $this->db->where('tipe_nasabah', $tipe);
+    $this->db->where('jumlah_nasabah', $jumlah);
+    $nasabah_list = $this->db->get()->result_array();
+
+    if (!empty($nasabah_list)) {
+        $ids = array_column($nasabah_list, 'id_nasabah');
+
+        // Update hanya iuran dengan status belum bayar
+        $this->db->where_in('id_nasabah', $ids);
+        $this->db->where('status_iuran', 'belum bayar');
+        return $this->db->update('iuran', [
+            'biaya' => $biaya_baru
+        ]);
     }
 
-    $this->db->order_by('ts.tanggal_setor', 'ASC');
-    $query = $this->db->get();
-    return $query->result_array();
+    return true;
 }
+
     
 }

@@ -38,13 +38,18 @@ class Agent_model extends CI_Model {
         return $row->total_income ?? 0;
     }
 
-    public function get_agent_transactions($agent_id)
+    public function get_agent_transactions($agent_id, $limit = null) 
     {
-        $this->db->select('ts.*, u.nama as customer_name, (SELECT SUM(ds.subtotal_poin) FROM detail_setoran ds WHERE ds.id_setoran = ts.id_setoran) as transaction_value');
+        $this->db->select('ts.*, u.nama as customer_name, ts.total_poin, ts.total_berat'); 
         $this->db->from('transaksi_setoran ts');
-        $this->db->join('users u', 'u.id_user = ts.id_user');
+        $this->db->join('users u', 'u.id_user = ts.id_user', 'left');
         $this->db->where('ts.id_agent', $agent_id);
         $this->db->order_by('ts.tanggal_setor', 'DESC');
+        
+        if ($limit !== null) {
+            $this->db->limit($limit);
+        }
+        
         return $this->db->get()->result_array();
     }
 
@@ -429,25 +434,38 @@ class Agent_model extends CI_Model {
 
     public function get_pending_iuran_by_user($user_id)
     {
-        $this->db->select('i.id_iuran, i.biaya, i.deadline');
+        $this->db->select('i.id_iuran, i.biaya, i.deadline, i.tanggal_bayar'); 
         $this->db->from('iuran i');
         $this->db->join('nasabah n', 'n.id_nasabah = i.id_nasabah');
         $this->db->where('n.id_users', $user_id);
         $this->db->where('i.status_iuran', 'belum bayar');
-        // Hanya ambil satu, asumsikan hanya ada satu iuran pending
         $this->db->limit(1); 
         return $this->db->get()->row_array();
     }
 
+    public function get_iuran_history_by_user($user_id)
+    {
+        $this->db->select('i.*, n.tipe_nasabah');
+        $this->db->from('iuran i');
+        $this->db->join('nasabah n', 'n.id_nasabah = i.id_nasabah');
+        $this->db->where('n.id_users', $user_id);
+        $this->db->order_by('i.deadline', 'DESC');
+        return $this->db->get()->result_array();
+    }
+
     public function update_iuran_to_paid($id_iuran)
     {
+        $data = [
+            'status_iuran' => 'sudah bayar',
+            'tanggal_bayar' => date('Y-m-d') // Mengisi tanggal hari ini saat dibayar
+        ];
         $this->db->where('id_iuran', $id_iuran);
-        return $this->db->update('iuran', ['status_iuran' => 'sudah bayar']);
+        return $this->db->update('iuran', $data);
     }
 
     public function get_all_users_by_agent($agent_id)
     {
-        $this->db->select('u.id_user, u.nama, u.phone, u.address, n.tipe_nasabah, n.jumlah_nasabah');
+        $this->db->select('u.id_user, u.nama, u.email, u.phone, u.address, n.tipe_nasabah, n.jumlah_nasabah'); // 🚨 PERBAIKAN: TAMBAHKAN u.email DI SINI
         $this->db->from('users u');
         // Filter user yang memilih agent ini sebagai agent pilihan mereka
         $this->db->where('u.id_agent_pilihan', $agent_id);
@@ -457,5 +475,30 @@ class Agent_model extends CI_Model {
         $this->db->join('nasabah n', 'n.id_users = u.id_user', 'left'); 
         $this->db->order_by('u.nama', 'ASC');
         return $this->db->get()->result_array();
+    }
+
+    public function count_customers_by_agent($agent_id)
+    {
+        // Asumsi nasabah memilih agent dengan kolom 'id_agent_pilihan' di tabel 'users'
+        $this->db->where('id_agent_pilihan', $agent_id);
+        $this->db->where('role', 'user');
+        return $this->db->count_all_results('users');
+    }
+
+    public function count_unpaid_customers_by_agent($agent_id)
+    {
+        // Mengambil user (nasabah) yang memilih agent ini
+        $this->db->select('COUNT(DISTINCT u.id_user) as total');
+        $this->db->from('users u');
+        $this->db->join('nasabah n', 'n.id_users = u.id_user', 'inner');
+        $this->db->join('iuran i', 'i.id_nasabah = n.id_nasabah', 'inner');
+        
+        // Filter berdasarkan agent yang dipilih oleh nasabah
+        $this->db->where('u.id_agent_pilihan', $agent_id);
+        // Filter berdasarkan status iuran
+        $this->db->where('i.status_iuran', 'belum bayar');
+        
+        $query = $this->db->get();
+        return $query->row() ? $query->row()->total : 0;
     }
 }

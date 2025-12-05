@@ -80,6 +80,11 @@
         </li>
 		<li class="nav-item">
         <a class="nav-link <?= uri_string() == 'admin/manage_iuran' ? 'active' : '' ?>" href="<?= base_url('admin/manage_iuran') ?>">
+            <i class="bi bi-cash-stack"></i>Master Manajemen Iuran
+        </a>
+        </li>
+		<li class="nav-item">
+        <a class="nav-link <?= uri_string() == 'admin/iuran_view' ? 'active' : '' ?>" href="<?= base_url('admin/view_iuran') ?>">
             <i class="bi bi-cash-stack"></i> Manajemen Iuran
         </a>
         </li>
@@ -97,6 +102,7 @@
     <?php if (isset($view_name)) { $this->load->view($view_name); } ?>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

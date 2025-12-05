@@ -32,9 +32,9 @@ class User extends CI_Controller {
         $data['waste_labels'] = json_encode(array_column($waste_summary, 'waste_type'));
         $data['waste_data'] = json_encode(array_column($waste_summary, 'total_weight'));
 
-        // PERBAIKAN: Mengambil data iuran dari database
+        // Mengambil data iuran user
         $iuran_data = $this->User_model->get_user_iuran($user_id);
-        
+
         if ($iuran_data) {
             $data['iuran'] = array(
                 'status' => $iuran_data['status'],
@@ -42,16 +42,13 @@ class User extends CI_Controller {
                 'due_date' => $iuran_data['due_date']
             );
         } else {
-             // Nilai default jika user belum terdaftar sebagai nasabah/iuran tidak ditemukan
             $data['iuran'] = array(
-                'status' => 'na', // 'na' stands for Not Available (Belum Terdaftar)
+                'status' => 'na',
                 'amount' => 0,
                 'due_date' => 'N/A'
             );
-             // Pesan opsional untuk memberi tahu pengguna
             $this->session->set_flashdata('info', 'Anda belum terdaftar sebagai Nasabah. Silakan daftar di halaman Profil untuk mulai mengumpulkan iuran.');
         }
-
 
         $data['view_name'] = 'user/dashboard';
         $this->load->view('user/layout', $data);
@@ -77,41 +74,44 @@ class User extends CI_Controller {
 
         if (empty($user_profile['latitude']) || empty($user_profile['longitude'])) {
             $this->session->set_flashdata('info', 'Atur lokasi Anda di profil untuk melihat bank sampah terdekat.');
-            
+
             if (!$data['selected_agent_id']) {
-                // Jika lokasi kosong dan TIDAK ADA agen pilihan, tampilkan semua agen
                 $data['agents'] = $this->User_model->get_all_active_agents();
             } else {
-                // PERBAIKAN BUG 1582: Jika lokasi kosong, TAMPILKAN HANYA AGEN PILIHAN.
                 $data['agents'] = $this->User_model->get_one_agent($data['selected_agent_id']);
-                
+
                 if (empty($data['agents'])) {
-                    // Fallback jika agen pilihan tidak valid/tidak aktif
                     $this->session->set_flashdata('error', 'Bank sampah pilihan tidak valid. Pilihan direset. Menampilkan semua bank sampah.');
                     $this->User_model->set_chosen_agent($user_id, null);
                     $data['selected_agent_id'] = null;
                     $data['agents'] = $this->User_model->get_all_active_agents();
                 } else {
-                    // Beri tahu user bahwa ini adalah agen pilihannya
                     $this->session->set_flashdata('info', 'Lokasi Anda belum diatur, menampilkan Bank Sampah pilihan Anda.');
                 }
             }
         } else {
-            $data['user_location'] = array('lat' => $user_profile['latitude'], 'lng' => $user_profile['longitude']);
+            $data['user_location'] = array(
+                'lat' => $user_profile['latitude'],
+                'lng' => $user_profile['longitude']
+            );
 
             if ($data['selected_agent_id']) {
                 $data['agents'] = $this->User_model->get_one_agent($data['selected_agent_id']);
+
                 if (empty($data['agents'])) {
                     $this->session->set_flashdata('error', 'Bank sampah pilihan tidak valid. Pilihan direset.');
                     $this->User_model->set_chosen_agent($user_id, null);
                     $data['selected_agent_id'] = null;
+
                     $data['agents'] = $this->User_model->get_nearest_agents($user_profile['latitude'], $user_profile['longitude'], 10, 4);
+
                     if (empty($data['agents'])) {
                         $data['agents'] = $this->User_model->get_all_active_agents();
                     }
                 }
             } else {
                 $data['agents'] = $this->User_model->get_nearest_agents($user_profile['latitude'], $user_profile['longitude']);
+
                 if (empty($data['agents'])) {
                     $this->session->set_flashdata('info', 'Tidak ada bank sampah dalam radius 10km. Menampilkan semua.');
                     $data['agents'] = $this->User_model->get_all_active_agents();
@@ -128,34 +128,46 @@ class User extends CI_Controller {
         $user_id = $this->session->userdata('user_id');
 
         if (!$user_id) {
-            if ($this->input->is_ajax_request()) {
-                $this->output
-                    ->set_status_header(401)
-                    ->set_content_type('application/json')
-                    ->set_output(json_encode(array('success' => false, 'message' => 'User tidak login atau sesi berakhir.')));
-            } else {
-                $this->session->set_flashdata('error', 'Sesi Anda berakhir, silakan login lagi.');
-                redirect(base_url());
-            }
+            $this->output->set_status_header(401)
+                ->set_content_type('application/json')
+                ->set_output(json_encode(['success' => false, 'message' => 'User tidak login atau sesi berakhir.']));
+            return;
+        }
+
+        // RESET pilihan agent
+        if ((int)$agent_id === 0) {
+
+            $this->User_model->set_chosen_agent($user_id, null);
+
+            // reset iuran +10 hari
+            $this->User_model->reset_iuran_on_agent_change($user_id);
+
+            $this->output->set_content_type('application/json')
+                ->set_output(json_encode(['success' => true, 'message' => 'Pilihan agent direset.']));
             return;
         }
 
         $agent_id = (int)$agent_id;
-        if ($agent_id === 0) {
-            $this->User_model->set_chosen_agent($user_id, null);
-            $this->output->set_content_type('application/json')
-                ->set_output(json_encode(array('success' => true, 'message' => 'Pilihan agent direset.')));
-            return;
-        }
+        $agent_exists = $this->db->get_where('agent', [
+            'id_agent' => $agent_id,
+            'status' => 'aktif'
+        ])->num_rows() > 0;
 
-        $agent_exists = $this->db->get_where('agent', array('id_agent' => $agent_id, 'status' => 'aktif'))->num_rows() > 0;
-        if ($user_id && $agent_id > 0 && $agent_exists) {
+        if ($agent_exists) {
+
+            // ubah agent pilihan
             $this->User_model->set_chosen_agent($user_id, $agent_id);
-            $this->output->set_content_type('application/json')->set_output(json_encode(array('success' => true)));
+
+            // reset iuran 10 hari dari hari ini
+            $this->User_model->reset_iuran_on_agent_change($user_id);
+
+            $this->output->set_content_type('application/json')
+                ->set_output(json_encode(['success' => true]));
         } else {
+
             $this->output->set_status_header(400)
                 ->set_content_type('application/json')
-                ->set_output(json_encode(array('success' => false, 'message' => 'Agent tidak valid atau tidak aktif.')));
+                ->set_output(json_encode(['success' => false, 'message' => 'Agent tidak valid atau tidak aktif.']));
         }
     }
 
@@ -165,57 +177,55 @@ class User extends CI_Controller {
 
         if ($this->input->post()) {
 
-           if ($this->input->post('add_nasabah') == '1') {
-    $tipe = $this->input->post('tipe_nasabah');
-    $jumlah = ($tipe == 'Kelompok') ? $this->input->post('jumlah_nasabah') : 1;
+            if ($this->input->post('add_nasabah') == '1') {
+                $tipe = $this->input->post('tipe_nasabah');
+                $jumlah = ($tipe == 'Kelompok') ? $this->input->post('jumlah_nasabah') : 1;
 
-    // Cek apakah user sudah pernah jadi kelompok
-    $existing = $this->User_model->get_nasabah_by_user($user_id);
-    if ($existing && $existing['tipe_nasabah'] === 'Kelompok' && $tipe === 'Perorangan') {
-        $this->session->set_flashdata('error', 'Anda sudah terdaftar sebagai nasabah kelompok dan tidak dapat kembali menjadi perorangan.');
-        redirect('user/profile');
-        return;
-    }
+                // Cek sudah kelompok
+                $existing = $this->User_model->get_nasabah_by_user($user_id);
+                if ($existing && $existing['tipe_nasabah'] === 'Kelompok' && $tipe === 'Perorangan') {
+                    $this->session->set_flashdata('error', 'Anda sudah terdaftar sebagai nasabah kelompok dan tidak dapat kembali menjadi perorangan.');
+                    redirect('user/profile'); return;
+                }
 
-    if ($tipe == 'Kelompok' && (!is_numeric($jumlah) || $jumlah < 2)) {
-        $this->session->set_flashdata('error', 'Jumlah anggota untuk kelompok minimal 2.');
-        redirect('user/profile');
-        return;
-    }
+                if ($tipe == 'Kelompok' && (!is_numeric($jumlah) || $jumlah < 2)) {
+                    $this->session->set_flashdata('error', 'Jumlah anggota untuk kelompok minimal 2.');
+                    redirect('user/profile'); return;
+                }
 
-    // Simpan atau update data nasabah
-    $nasabah_data = [
-        'tipe_nasabah' => $tipe,
-        'jumlah_nasabah' => $jumlah
-    ];
+                // Simpan/update nasabah
+                $nasabah_data = [
+                    'tipe_nasabah' => $tipe,
+                    'jumlah_nasabah' => $jumlah
+                ];
 
-    $nasabah = $this->User_model->get_nasabah_by_user($user_id);
-    if ($nasabah) {
-        $this->db->where('id_users', $user_id);
-        $this->db->update('nasabah', $nasabah_data);
-    } else {
-        $nasabah_data['id_users'] = $user_id;
-        $this->db->insert('nasabah', $nasabah_data);
-    }
+                $nasabah = $this->User_model->get_nasabah_by_user($user_id);
+                if ($nasabah) {
+                    $this->db->where('id_users', $user_id);
+                    $this->db->update('nasabah', $nasabah_data);
+                } else {
+                    $nasabah_data['id_users'] = $user_id;
+                    $this->db->insert('nasabah', $nasabah_data);
+                }
 
-    // Reset iuran (biaya dan deadline baru)
-    $biaya_baru = ($tipe == 'Kelompok') ? 50000 : 20000; // contoh: kelompok lebih mahal
-    $deadline_baru = date('Y-m-d', strtotime('+30 days'));
-    $this->User_model->reset_iuran($user_id, $biaya_baru, $deadline_baru);
+                // reset iuran 30 hari
+                $biaya_baru = ($tipe == 'Kelompok') ? 50000 : 20000;
+                $deadline_baru = date('Y-m-d', strtotime('+30 days'));
+                $this->User_model->reset_iuran($user_id, $biaya_baru, $deadline_baru);
 
-    $this->session->set_flashdata('success', 'Tipe nasabah berhasil diperbarui dan iuran direset.');
-    redirect('user/profile');
-}
+                $this->session->set_flashdata('success', 'Tipe nasabah berhasil diperbarui dan iuran direset.');
+                redirect('user/profile');
+            }
 
-
-            $update_data = array(
+            // UPDATE profil biasa
+            $update_data = [
                 'nama' => $this->input->post('name'),
                 'phone' => $this->input->post('phone'),
                 'address' => $this->input->post('address'),
                 'bio' => $this->input->post('bio'),
-                'latitude' => $this->input->post('latitude') ? $this->input->post('latitude') : null,
-                'longitude' => $this->input->post('longitude') ? $this->input->post('longitude') : null
-            );
+                'latitude' => $this->input->post('latitude') ?: null,
+                'longitude' => $this->input->post('longitude') ?: null
+            ];
 
             if ($this->input->post('password')) {
                 $update_data['password'] = password_hash($this->input->post('password'), PASSWORD_BCRYPT);
@@ -227,8 +237,8 @@ class User extends CI_Controller {
             } else {
                 $this->session->set_flashdata('error', 'Gagal memperbarui profil.');
             }
+
             redirect('user/profile');
-            return;
         }
 
         $user_profile = $this->User_model->get_user_profile($user_id);
@@ -244,29 +254,29 @@ class User extends CI_Controller {
             $address_display = $user_profile['address'];
         }
 
-        $data['user'] = array(
+        $data['user'] = [
             'name' => $user_profile['nama'],
             'role' => ucfirst($user_profile['role']),
             'email' => $user_profile['email'],
-            'phone' => !empty($user_profile['phone']) ? $user_profile['phone'] : 'Belum diisi',
+            'phone' => $user_profile['phone'] ?: 'Belum diisi',
             'address' => $address_display,
             'latitude' => $user_profile['latitude'],
             'longitude' => $user_profile['longitude'],
             'raw_address' => $user_profile['address'],
-            'bio' => !empty($user_profile['bio']) ? $user_profile['bio'] : 'Ceritakan tentang diri Anda.',
+            'bio' => $user_profile['bio'] ?: 'Ceritakan tentang diri Anda.',
             'member_since' => date('M Y', strtotime($user_profile['created_at']))
-        );
+        ];
 
-        $data['nasabah'] = !empty($user_profile['tipe_nasabah']) ? array(
+        $data['nasabah'] = !empty($user_profile['tipe_nasabah']) ? [
             'tipe_nasabah' => $user_profile['tipe_nasabah'],
-            'jumlah_nasabah' => isset($user_profile['jumlah_nasabah']) ? $user_profile['jumlah_nasabah'] : 0
-        ) : null;
+            'jumlah_nasabah' => $user_profile['jumlah_nasabah'] ?? 0
+        ] : null;
 
-        $data['stats'] = array(
+        $data['stats'] = [
             'collections' => $this->User_model->count_user_transactions($user_id),
             'points' => $this->User_model->get_user_points($user_id),
             'waste_collected' => $this->User_model->get_total_waste_by_user($user_id)
-        );
+        ];
 
         $data['view_name'] = 'user/profile';
         $this->load->view('user/layout', $data);
@@ -278,6 +288,7 @@ class User extends CI_Controller {
 
         if ($this->input->post()) {
             $no_rekening = trim($this->input->post('no_rekening'));
+
             if (empty($no_rekening)) {
                 $this->session->set_flashdata('error', 'Nomor rekening tidak boleh kosong.');
                 redirect('user/rekening');
@@ -288,6 +299,7 @@ class User extends CI_Controller {
             } else {
                 $this->session->set_flashdata('error', 'Gagal menyimpan nomor rekening.');
             }
+
             redirect('user/rekening');
         }
 
@@ -295,48 +307,6 @@ class User extends CI_Controller {
         $data['view_name'] = 'user/rekening';
         $this->load->view('user/layout', $data);
     }
-	public function export_transactions_excel()
-{
-    $user_id = $this->session->userdata('user_id');
-    if (!$user_id) {
-        redirect(base_url());
-    }
-
-    $this->load->model('User_model');
-    $transactions = $this->User_model->get_user_transactions($user_id);
-
-    // Nama file
-    $filename = "Riwayat_Transaksi_User_" . date('Ymd_His') . ".xls";
-
-    header("Content-Type: application/vnd.ms-excel");
-    header("Content-Disposition: attachment; filename=$filename");
-
-    echo "<table border='1'>
-            <tr>
-                <th>No</th>
-                <th>Tanggal</th>
-                <th>Agen</th>
-                <th>Wilayah</th>
-                <th>Total Berat (Kg)</th>
-                <th>Pendapatan (Rp)</th>
-            </tr>";
-
-    $no = 1;
-    foreach ($transactions as $row) {
-        echo "<tr>
-                <td>{$no}</td>
-                <td>" . date('d-m-Y', strtotime($row['tanggal_setor'])) . "</td>
-                <td>" . ($row['agent_name'] ?? 'Bank Sampah Pusat') . "</td>
-                <td>" . ($row['agent_area'] ?? '-') . "</td>
-                <td>" . number_format($row['total_berat'], 2, ',', '.') . "</td>
-                <td>" . number_format($row['transaction_value'], 0, ',', '.') . "</td>
-             </tr>";
-        $no++;
-    }
-
-    echo "</table>";
-}
-
 
     public function logout()
     {

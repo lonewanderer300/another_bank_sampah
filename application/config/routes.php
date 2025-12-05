@@ -77,6 +77,7 @@ $route['agent/logout'] = 'agent/logout';
 
 $route['admin/login'] = 'admin/login';
 
+
 $route['admin/logout'] = 'admin/logout';
 
 $route['admin/dashboard'] = 'admin/dashboard';
@@ -90,10 +91,6 @@ $route['admin/users'] = 'admin/users';
 $route['admin/agents'] = 'admin/agents';
 
 $route['admin/waste_prices'] = 'admin/waste_prices';
-
-$route['admin/export_users'] = 'admin/export_users_excel';
-
-$route['admin/export_agents'] = 'admin/export_agents';
 
 $route['404_override'] = '';
 

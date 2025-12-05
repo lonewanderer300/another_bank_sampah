@@ -148,7 +148,7 @@
                                     <td><?= date('d M Y, H:i', strtotime($trans['tanggal_setor'])); ?></td>
                                     <td><?= html_escape($trans['customer_name']); ?></td>
                                     <td class="text-end"><?= number_format($trans['total_berat'] ?? 0, 2); ?> kg</td>
-                                    <td class="text-end fw-bold text-success">+ <?= number_format($trans['transaction_value'] ?? 0, 0, ',', '.'); ?></td>
+                                    <td class="text-end fw-bold text-success">+ Rp <?= number_format($trans['total_poin'] ?? 0, 0, ',', '.'); ?></td>
                                     <td>
                                         <a href="<?= base_url('agent/edit_transaction/' . $trans['id_setoran']) ?>" class="btn btn-sm btn-info text-white">
                                             <i class="bi bi-pencil-square"></i> Edit
